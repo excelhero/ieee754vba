@@ -19,29 +19,12 @@ Private Type ByteArrayTemplate
     Elements(0 To 3) As Byte
 End Type
 
-'Private Type ByteArrayTemplate4
-'    Elements(0 To 3) As Byte
-'End Type
-
-'Private Type SingleTemplate
-'    Value As Single
-'End Type
-
 Private Type StringTemplate
     Value As String * 2
 End Type
 
-'Private Type StringTemplate2
-'    Value As String * 2
-'End Type
-
-'Private Type LongTemplate
-'    Value As Long
-'End Type
-
 Private Type Long2Template
     lo As Long
-    'Hi As Long
 End Type
 
 Private theValue As FloatTemplate
@@ -106,46 +89,6 @@ Private Const HEX_MAX_SAFE___INT_NEG$ = "CB7FFFFF"
 
 Private Const HEX_PI________POSITIVE$ = "40490FDB"
 Private Const HEX_E_________POSITIVE$ = "402DF854"
-
-
-
-
-
-Public Function ConvertFromDouble!(n#)
-    Dim sd&, ed&, md
-    Dim ss&, es&, ms
-    Dim eactual&, mactual
-    
-    With CDouble
-        .Func_floatSplit n, sd, ed, md
-        
-        ss = sd
-        
-        If ed = .Spec_ExponentMaxBiased Then            'inf or nan
-            es = Me.Spec_ExponentMaxBiased
-            If md = 0 Then ms = 0 Else ms = 1
-            GoTo assemble
-        End If
-        
-        If ed > 0 Then                                  'normal
-            eactual = ed - .Spec_ExponentBias_Base10
-            mactual = 1 & "." & md
-        End If
-        
-        If ed = 0 Then                                  'subnormal or zero
-            eactual = ed - .Spec_ExponentBias_Base10
-            mactual = 0 & "." & md
-            If Val(mactual) = 0 Then GoTo assemble      'zero
-            
-        End If
-        
-        
-    End With
-
-End Function
-
-
-
 
 
 Public Sub Func_floatSplit(ByRef n!, Optional s, Optional e, Optional m, Optional decode As Boolean)
@@ -260,7 +203,6 @@ Public Function Func_floatIntegerRatio$(n!, Optional num$, Optional den$)
     e = Me.Func_floatExponent(n, True)
     m = Me.Func_floatSignificand(n)
     
-    'If e >= 0 Then
     If Me.Func_isNormal(n) Then
         den = CDec(CFloat.PowerOf02Exact(MANTISSA_SIZE))
         num = CFloat.ExactProduct(CFloat.PowerOf02Exact(e), m + den)
@@ -268,8 +210,6 @@ Public Function Func_floatIntegerRatio$(n!, Optional num$, Optional den$)
         mbits_used = Int(Log(m) / Log(2)) + 1
         den = CDec(CFloat.PowerOf02Exact(mbits_used))
         num = CFloat.ExactProduct(CFloat.PowerOf02Exact(e - (MANTISSA_SIZE - mbits_used)), m)
-        ''den = CDec(CFloat.PowerOf02Exact(MANTISSA_SIZE))
-        ''num = CFloat.ExactProduct(CFloat.PowerOf02Exact(e), m + den)
     End If
     
     If e < 0 Then
@@ -284,7 +224,6 @@ Public Function Func_floatIntegerRatio$(n!, Optional num$, Optional den$)
         
 
         If Right$(num, 2) = ".0" Then num = Left$(num, Len(num) - 2)
-        
         
 
         Func_floatIntegerRatio = String$(-(n < 0), "-") & num & " / " & den
@@ -343,12 +282,6 @@ Public Function Func_isNaN(x!, Optional andNegative As Boolean) As Boolean
     If Func_isNaN And andNegative Then Func_isNaN = Func_floatSign(x)
 End Function
 
-
-'Public Function Func_isNaN(x!, Optional andNegative As Boolean) As Boolean
-'    If Func_isFinite(x) Then Exit Function
-'    If Func_floatSignificand(x) Then Func_isNaN = True
-'    If Func_isNaN And andNegative Then Func_isNaN = Func_floatSign(x)
-'End Function
 
 Public Function Func_isInfinity(x!, Optional andNegative As Boolean) As Boolean
     If Func_isFinite(x) Then Exit Function
@@ -549,8 +482,6 @@ Public Property Get Value_BinadeNext!(Optional steps&, Optional return_exponent 
     End If
     
     
-    '''Value_BinadeNext = Me.Func_2PowerNext(Value)
-
     If Not return_exponent Then
         If Value <> 0 Then
             Value_BinadeNext = Me.Func_2PowerNext(Value)
@@ -565,17 +496,6 @@ Public Property Get Value_BinadeNext!(Optional steps&, Optional return_exponent 
         End If
     End If
 
-
-'    e = Value_Exponent_Base10
-'    If Not Value_Is_Subnormal Then
-'        If e < EXPONENT_BIAS Then
-'            Value_BinadeNext = CFloat.PowerOf02Double(e + 1)
-'        Else
-'            Value_BinadeNext = Sample_Infinity
-'        End If
-'    Else
-'        Value_BinadeNext = CFloat.PowerOf02Double(e)
-'    End If
 End Property
 
 
@@ -606,36 +526,19 @@ Public Property Get Value_BinadePrev!(Optional steps&, Optional return_exponent 
         If Value <> 0 Then
             Value_BinadePrev = Me.Func_2PowerPrev(Value)
         Else
-            Value_BinadePrev = 0        'CFloat.PowerOf02Double(EXPONENT_MIN_SUBNORMAL_EXPANSION)
+            Value_BinadePrev = 0
         End If
     Else
         If Value <> 0 Then
             Value_BinadePrev = Log(Me.Func_2PowerPrev(Abs(Value), subnormal_alt_representation)) / Log(2)
         Else
-            Value_BinadePrev = 0        'EXPONENT_MIN_SUBNORMAL_EXPANSION
+            Value_BinadePrev = 0
         End If
     End If
-    
-    '''Value_BinadeNext = Me.Func_2PowerPrev(Value)
-'    e = Value_Exponent_Base10
-'    If Not Value_Is_Subnormal Then
-'        If e > EXPONENT_MIN Then
-'            Value_BinadePrev = CFloat.PowerOf02Double(e - 1)
-'        Else
-'            Value_BinadePrev = 0
-'        End If
-'    Else
-'        Value_BinadePrev = CFloat.PowerOf02Double(e)
-'    End If
+
 End Property
 
 Public Property Get Value_BinadeInterval$(Optional subnormal_alt_representation As Boolean)
-    'Dim e&
-    'If Not Value_Is_Subnormal Then e = Value_Exponent_Base10 Else e = EXPONENT_MIN_SUBNORMAL_EXPANSION
-    'Value_BinadeInterval = "[2^" & e & " --> " & CDbl(Value_Binade) & ", " & CDbl(Value_BinadeNext) & ")"
-    
-    '''Value_BinadeInterval = "[2^" & Value_Exponent_Base10 & " --> " & CDbl(Value_Binade) & ", " & CDbl(Value_BinadeNext) & ")"
-    '''Value_BinadeInterval = "[2^" & Log(Me.Func_2PowerCurr(Value)) / Log(2) & ", 2^" & Log(Me.Func_2PowerNext(Value)) / Log(2) & ")"
     
     Dim lo!, hi!, lo_$, hi_$, t$
     
@@ -1006,10 +909,7 @@ Public Function Func_2PowerCurr!(x!)
     
     If Me.Func_isNaN(x) Then Func_2PowerCurr = x: Exit Function
     n = Me.Func_floatExponent(x) - EXPONENT_BIAS
-    'If n = Me.Spec_ExponentMaxBiased Then Func_2PowerCurr = x: Exit Function
     If x = 0 Then Func_2PowerCurr = x: Exit Function
-    
-    'n = Int(Log(Abs(x)) / Log(2))
     
     If n >= Me.Spec_ExponentMax Then
         Func_2PowerCurr = Me.Sample_QNaN
@@ -1020,9 +920,6 @@ Public Function Func_2PowerCurr!(x!)
     
     If x < 0 Then Func_2PowerCurr = -Func_2PowerCurr
     
-'    n = Int(Log(Abs(x)) / Log(2))
-'    Func_2PowerCurr = CFloat.PowerOf02Double(n)
-'    If x < 0 Then Func_2PowerCurr = -Func_2PowerCurr
 End Function
 
 Public Function Func_2PowerNext!(x!, Optional subnormal_alt_representation As Boolean)
@@ -1034,17 +931,7 @@ Public Function Func_2PowerNext!(x!, Optional subnormal_alt_representation As Bo
         n = Me.Func_floatExponent(x) - EXPONENT_BIAS + 1
     Else
         n = CStr(Log(Me.Func_2PowerCurr(Abs(x))) / Log(2)) + 1
-        'If CStr(Log(Me.Func_2PowerCurr(Abs(x))) / Log(2)) = "-141" Then
-        '    n = -140
-        'Else
-        '    n = CFloat.Floor(Log(Me.Func_2PowerCurr(Abs(x))) / Log(2)) + 1
-        'End If
     End If
-    'If n = Me.Spec_ExponentMaxBiased Then Func_2PowerNext = x: Exit Function
-    '''If x = 0 Then Func_2PowerNext = x: Exit Function
-    
-    'n = Int(Log(Abs(x)) / Log(2)) + 1: If n > Me.Spec_ExponentMax Then Exit Function
-    
     
     If n >= Me.Spec_ExponentMax Then
         Func_2PowerNext = Me.Sample_QNaN
@@ -1106,16 +993,6 @@ Public Function Func_binade!(x!, Optional return_exponent As Boolean, Optional s
         End If
     End If
 
-'    If x = 0 Then
-'        Func_binade = x
-'    Else
-'        If Not Me.Func_isSubnormal(x) Then
-'            Func_binade = Me.Func_2PowerCurr(x)
-'        Else
-'            Func_binade = CFloat.PowerOf02Double(EXPONENT_MIN_SUBNORMAL_EXPANSION)
-'            If Me.Func_floatSign(x) Then Func_binade = Me.Func_floatNegate(Func_binade)
-'        End If
-'    End If
 End Function
 
 
@@ -1459,15 +1336,6 @@ Public Function Mutate_Binade(BinadeExponent&) As CSingle
     End If
     Set Mutate_Binade = Me
 End Function
-'
-'Public Function Mutate_BinadeNext() As CSingle
-'    Dim e&
-'    e = Value_Exponent_Base10
-'    If e < EXPONENT_BIAS + 1 Then
-'        Value_Exponent_Base10 = e + 1
-'    End If
-'    Set Mutate_BinadeNext = Me
-'End Function
 
 Public Function Mutate_AdvanceBinade(Optional by& = 1) As CSingle
     Dim e&, n&
@@ -1694,15 +1562,6 @@ TheExit:
     Set Mutate_RandomInBinade = Me
 End Function
 
-'Public Function Mutate_RandomInBinade(BinadeExponent&, Optional bRandomize As Boolean = False) As CSingle
-'    If BinadeExponent >= Spec_ExponentMin And BinadeExponent <= Spec_ExponentMax Then
-'        Value_Exponent_Base10 = BinadeExponent
-'        If bRandomize Then Randomize
-'        Raw_Mantissa_Decimal = Int((CDec(RAW_MANTISSA_MAX_DECIMAL) - 0 + 1) * Rnd + 0)
-'    End If
-'    Set Mutate_RandomInBinade = Me
-'End Function
-
 Public Function Mutate_RandomSubnormal(Optional bRandomize As Boolean = False) As CSingle
     Dim b&
     If bRandomize Then Randomize
@@ -1856,7 +1715,7 @@ Public Property Get Raw_Entire_Binary$(Optional ByVal FieldSpaces&, Optional ByV
     Raw_Entire_Binary = CFloat.ByteArrayToBinaryString(theByteArray.Elements, FieldSpaces, ByteSpaces, SubnormalAlt)
 End Property
 Public Property Let Raw_Entire_Binary(Optional ByVal FieldSpaces&, Optional ByVal ByteSpaces&, Optional ByVal SubnormalAlt As Boolean, ByVal bin$)
-    CFloat.BinaryStringToBitArrayFilll Right$(CFloat.ForceStringToBinaryDigitsOnly(bin), STORAGE_BITS), theBitArray
+    CFloat.BinaryStringToBitArrayFill Right$(CFloat.ForceStringToBinaryDigitsOnly(bin), STORAGE_BITS), theBitArray
     Synchronize
 End Property
 
@@ -1918,7 +1777,7 @@ Public Property Let Raw_Entire_Decimal(ByVal n)
     n = Int(CDec(n))
     
     If n >= 0 And n <= CDec(RAW_INTEGER_MAX_DECIMAL) Then
-        CFloat.BinaryStringToBitArrayFilll CFloat.DecToBin(n), theBitArray
+        CFloat.BinaryStringToBitArrayFill CFloat.DecToBin(n), theBitArray
         Synchronize
     Else
         Stop
@@ -1944,7 +1803,7 @@ Public Property Let Raw_Exponent_Biased_Binary(ByVal bin$)
     bin = CFloat.ForceStringToBinaryDigitsOnly(bin)
     
     If Len(bin) > 1 And Len(bin) <= EXPONENT_SIZE Then
-        CFloat.BinaryStringToBitArrayFilll bin, theBitArray, EXPONENT_BIT_LO, EXPONENT_BIT_HI
+        CFloat.BinaryStringToBitArrayFill bin, theBitArray, EXPONENT_BIT_LO, EXPONENT_BIT_HI
         Synchronize
     Else
         Stop
@@ -1989,7 +1848,7 @@ Public Property Get Raw_Mantissa_Binary$(Optional ByVal ByteSpaces&)
 End Property
 Public Property Let Raw_Mantissa_Binary(Optional ByVal ByteSpaces&, ByVal bin$)
     bin = CFloat.ForceStringToBinaryDigitsOnly(bin)
-    CFloat.BinaryStringToBitArrayFilll Right$(bin, MANTISSA_SIZE), theBitArray, 1, MANTISSA_SIZE
+    CFloat.BinaryStringToBitArrayFill Right$(bin, MANTISSA_SIZE), theBitArray, 1, MANTISSA_SIZE
     Synchronize
 End Property
 
@@ -2092,20 +1951,11 @@ Public Property Let Value_Exponent_Base10(ByVal n)
         CFloat.VariantDecimalIntegerToBitArrayFill n, theBitArray, EXPONENT_BIT_LO, EXPONENT_BIT_HI
         Synchronize
     Else
-        'Err.Raise vbObjectError + 13, , vbLf & n & " is not a valid binary64 True exponent value." & vbLf & vbLf & "-1023 - +1024 is the True exponent range."
-        
-        'GoTo ErrorHandler
     
     End If
     
     Exit Property
-    
-'ErrorHandler:
-    'Dim procName As String
-    'procName = Application.VBE.ActiveCodePane.CodeModule.ProcOfLine(Application.VBE.ActiveCodePane.TopLine, 0)
-    'MyErrorHandler Err, Me.Name, getUserID(), procName
-    'Resume Exithere
-    
+        
 End Property
 
 
@@ -2197,28 +2047,12 @@ Public Property Get Sample_NegativeZero() As CSingle
     Sample_NegativeZero = CFloat.HexStringToVariantFloat(HEX_ZERO______NEGATIVE, Me)
 End Property
 
-'Private Function InsertNanPayloadIntoHex$(ByVal allhex$, ByVal payload, Optional negate As Boolean)
-'    Dim payhex$, paydec
-'    Const BITS_& = 8
-'    If payload >= 1 And payload <= CDec(NAN_PAYLOAD_MAX_VALUE) Then
-'        paydec = CDec(payload)
-'        payhex = CFloat.BinToHex(CFloat.DecToBin(paydec, BITS_ * NAN_PAYLOAD_MAX_BYTES))
-'        allhex = Mid$(allhex, 1, RAW_HEX_DIGITS - 2 * NAN_PAYLOAD_MAX_BYTES) & payhex
-'        If negate Then allhex = "F" & Mid$(allhex, 2)
-'    End If
-'    InsertNanPayloadIntoHex = allhex
-'End Function
-
 Public Property Get Sample_QNaN(Optional payload = 1, Optional negate As Boolean) As CSingle
     Dim n!
     Set Sample_QNaN = New CSingle
     n = CFloat.HexStringToVariantFloat(HEX_QNAN______POSITIVE, Me)
     Sample_QNaN = CFloat.FloatNanPayloadImplant(n, payload, Me, negate)
     
-'    Dim allhex$
-'    Set Sample_QNaN = New CSingle
-'    allhex = InsertNanPayloadIntoHex(HEX_QNAN______POSITIVE, payload, negate)
-'    Sample_QNaN = CFloat.HexStringToVariantFloat(allhex, Me)
 End Property
 
 Public Property Get Sample_QNaNIndeterminate(Optional payload = 1) As CSingle
@@ -2227,10 +2061,6 @@ Public Property Get Sample_QNaNIndeterminate(Optional payload = 1) As CSingle
     n = CFloat.HexStringToVariantFloat(HEX_QNAN_INDETERMINATE, Me)
     Sample_QNaNIndeterminate = CFloat.FloatNanPayloadImplant(n, payload, Me)
        
-'    Dim allhex$
-'    Set Sample_QNaNIndeterminate = New CSingle
-'    allhex = InsertNanPayloadIntoHex(HEX_QNAN_INDETERMINATE, payload)
-'    Sample_QNaNIndeterminate = CFloat.HexStringToVariantFloat(allhex, Me)
 End Property
 
 Public Property Get Sample_SNaN(Optional payload = 1, Optional negate As Boolean) As CSingle
@@ -2239,10 +2069,6 @@ Public Property Get Sample_SNaN(Optional payload = 1, Optional negate As Boolean
     n = CFloat.HexStringToVariantFloat(HEX_SNAN______POSITIVE, Me)
     Sample_SNaN = CFloat.FloatNanPayloadImplant(n, payload, Me, negate)
     
-'    Dim allhex$
-'    Set Sample_SNaN = New CSingle
-'    allhex = InsertNanPayloadIntoHex(HEX_SNAN______POSITIVE, payload)
-'    Sample_SNaN = CFloat.HexStringToVariantFloat(allhex, Me)
 End Property
 
 

@@ -259,7 +259,7 @@ Public Sub VariantDecimalIntegerToBitArrayFill(ByVal n, bits&(), Optional lobit&
     Next
 End Sub
 
-Public Sub BinaryStringToBitArrayFilll(ByVal bin$, bits&(), Optional lobit&, Optional hibit&)
+Public Sub BinaryStringToBitArrayFill(ByVal bin$, bits&(), Optional lobit&, Optional hibit&)
     Dim i&, p&, lo&, hi&
     lo = lobit: If lo = 0 Then lo = LBound(bits)
     hi = hibit: If hi = 0 Then hi = UBound(bits)
@@ -316,18 +316,12 @@ End Sub
 Public Function BitArrayToVariantDecimalInteger(bits&(), Optional lobit& = 1, Optional hibit&)
     Dim i&, c&, lo&, hi&, n#, decint
 
-    'Static Cached_PowerOf2()
-
-    'If (Not Not Cached_PowerOf2) = 0 Then Cached_PowerOf2 = CreateCache_PowerOf02
-
     decint = CDec(0&)
     lo = lobit: If lo = 0 Then lo = 1
     hi = hibit: If hi = 0 Then hi = UBound(bits)
 
     For i = lo To hi
         If bits(i) Then decint = decint + PowerOf02VariantDecimal(i - lobit)
-        ''If bits(i) Then decint = decint + PowerOf02Double(i - lobit)
-        'If bits(i) Then decint = decint + Cached_PowerOf2(i - lobit)
     Next
     BitArrayToVariantDecimalInteger = decint
 End Function
@@ -976,249 +970,6 @@ zero:
 End Sub
 
 
-'Public Sub FloatingLiteralToVariantByRef3(ByVal fl$, ByRef n, oCaller As CDouble)
-'    Dim a$, b$, s&, t$, e&, m, q&, h$, v, w, del$
-'    Dim emax_unbias&, emin_subexp&, eponentbias&, signiflen16&, slen&
-'
-'
-''----------------------------------------------------------------------------------------------------------
-''
-''    Sample Hex Floating Point Literal:  "-0x1.921fb54442d18p+1" --> -3.141592653589793116
-''                                                           |
-''                                             base16        |            base10
-''    sign(opt)  hex-prefix  hex-significand-constant  2power-marker  2^exponent  floating-suffix(opt)
-''    |-------|  |--------|  |----------------------|  |-----------|  |--------|  |------------------|
-''        |          |            |                          |            |               |
-''        |          |            |                          |            |               |
-''        -         0x           1.921fb54442d18             p           +1             d,f,L
-''                                |
-''         hex-digit-sequence(opt).hex-digit-sequence
-''
-''----------------------------------------------------------------------------------------------------------
-'
-'
-'    n = 0
-'    h = LCase$(Trim$(fl))
-'    h = Replace(h, " ", "")
-'    If 0 = LenB("h") Then Exit Sub
-'
-'
-'    t = Replace(h, "+", "")
-'    t = Replace(t, "-", "")
-'    t = Replace(t, "0.0", "0")
-'    If InStr(t, "0x0p") Then
-'        If Left$(h, 1) = "-" Then GoTo Negative_Zero
-'        If Left$(t, 4) = "0x0p" Then Exit Sub
-'        GoTo Not_A_Number
-'    End If
-'
-'
-'    With oCaller
-'     emax_unbias = .Spec_ExponentMaxBiased
-'     emin_subexp = .Spec_ExponentMinBiased_SubnormalExpansion
-'     signiflen16 = .Spec_SignificandHexDigitCount
-'     eponentbias = .Spec_ExponentBias_Base10
-'    End With
-'
-'    t = Replace(t, "1.0", "1")
-'    If InStr(t, "0x1p") Then
-'
-'        Bisect h, a, b, "p"
-'        e = Val(b)
-'        If e > emax_unbias Then GoTo Not_A_Number
-'        If e < emin_subexp Then Exit Sub
-'        If e < emin_subexp And Left$(h, 1) = "-" Then GoTo Negative_Zero
-'
-'        If e = emax_unbias Then
-'            On Error Resume Next
-'            n = Val(Left$(h, 1) & 1) / 0
-'            On Error GoTo 0
-'            Exit Sub
-'        End If
-'        n = PowerOf02Double(e)
-'        Exit Sub
-'
-'    End If
-'
-'
-'    del = "0x"
-'    If 0 = Bisect(h, a, b, del) Then GoTo Not_A_Number
-'    s = --(a = "-")
-'
-'    del = "p"
-'    If 0 = Bisect(b, a, b, del) Then GoTo Not_A_Number
-'    e = Val(b):
-'    If e > emax_unbias Then GoTo Not_A_Number
-'    If e < emin_subexp And s = -1 Then GoTo Negative_Zero
-'    If e < emin_subexp Then Exit Sub
-'
-'
-'    del = "."
-'    If Bisect(a, a, b, del) Then
-'        h = b
-'        h = ForceStringToHexDigitsOnly(h)
-'        If e = emax_unbias Then GoTo Not_A_Number
-'
-'        slen = signiflen16
-'        If Left$(h, slen) = String$(slen, "f") Then
-'            m = "0"
-'            If Len(b) Then m = Left$(b, slen)
-'            If Len(m) < slen Then
-'                m = m & String$(slen - Len(m), "0")
-'            End If
-'            s = s * -&H800
-'            e = e + eponentbias: If e < 0 Then e = 0
-'            n = HexStringToVariantFloat(VBA.Hex(s + e) & m, oCaller)
-'            Exit Sub
-'        End If
-'
-'        m = CDbl(HexToDec(h))
-'        q = Len(h)
-'    Else
-'        m = 0
-'    End If
-'
-'    w = HexToDec(a)
-'    If w < 10000 Then w = CDbl(w)   'Variant Double if under 10000
-'
-'    If w + m Then
-'      On Error Resume Next
-'        n = (-1) ^ s * (w + m / PowerOf16Double(q)) * PowerOf02Double(e)
-'        If Err = 6 Then e = emax_unbias + 1: GoTo Not_A_Number
-'      On Error GoTo 0
-'    End If
-'    Exit Sub
-'
-'
-'
-'Not_A_Number:
-'    n = oCaller.Sample_SpecializedNaN(s < 0, e, h)
-'    Exit Sub
-'
-'Negative_Zero:
-'    n = oCaller.Sample_NegativeZero
-'
-'End Sub
-'
-'
-'
-'Public Sub FloatingLiteralToVariantByRef2(ByVal fl$, ByRef n, oCaller As Object)
-'    Dim s&, e&, m, q&, h$, v, w
-'    Dim emax_unbias&, emin_subexp&, eponentbias&, signiflen16&
-'
-'
-''----------------------------------------------------------------------------------------------------------
-''
-''    Sample Hex Floating Point Literal:  "-0x1.921fb54442d18p+1" --> 3.141592653589793116
-''                                                           |
-''                                             base16        |            base10
-''    sign(opt)  hex-prefix  hex-significand-constant  2power-marker  2^exponent  floating-suffix(opt)
-''    |-------|  |--------|  |----------------------|  |-----------|  |--------|  |------------------|
-''        |          |            |                          |            |               |
-''        |          |            |                          |            |               |
-''        -         0x           1.921fb54442d18             p           +1             d,f,L
-''                                |
-''         hex-digit-sequence(opt).hex-digit-sequence
-''
-''----------------------------------------------------------------------------------------------------------
-'
-'
-'    n = 0
-'    h = LCase$(Trim$(fl))
-'    If LenB("h") = 0 Then Exit Sub
-'
-'
-'    If InStr(h, "0x0p") Then
-'                                                        If Left$(h, 4) = "0x0p" Then Exit Sub
-'                                                        If Left$(h, 1) = "-" Then GoTo Negative_Zero
-'                                                        GoTo Not_A_Number
-'    End If
-'
-'
-'    With oCaller
-'     emax_unbias = .Spec_ExponentMaxBiased
-'     emin_subexp = .Spec_ExponentMinBiased_SubnormalExpansion
-'     signiflen16 = .Spec_SignificandHexDigitCount
-'     eponentbias = .Spec_ExponentBias_Base10
-'    End With
-'
-'    If InStr(h, "0x1p") Then
-'
-'        e = Val(Split(h, "p")(1)):                      If e > emax_unbias Then GoTo Not_A_Number
-'                                                        If e < emin_subexp Then Exit Sub
-'                                                        If e < emin_subexp And Left$(h, 1) = "-" Then GoTo Negative_Zero
-'
-'        If e = emax_unbias Then
-'            On Error Resume Next
-'            n = Val(Left$(h, 1) & 1) / 0
-'            On Error GoTo 0
-'            Exit Sub
-'        End If
-'        n = PowerOf02Double(e)
-'        Exit Sub
-'
-'    End If
-'
-'
-'
-'    v = Split(LCase$(h), "0x"):                         If 0 = UBound(v) Then GoTo Not_A_Number
-'    s = --(v(0) = "-")
-'
-'    v = Split(v(1), "p"):                               If 0 = UBound(v) Then GoTo Not_A_Number
-'    e = Val(v(1)):                                      If e > emax_unbias Then GoTo Not_A_Number
-'                                                        If e < emin_subexp Then Exit Sub
-'                                                        If e < emin_subexp And s = -1 Then GoTo Negative_Zero  '<--*** invert
-'
-'    v = Split(v(0), ".")
-'    If UBound(v) Then
-'        h = v(1)
-'        h = ForceStringToHexDigitsOnly(h):              If e = emax_unbias Then GoTo Not_A_Number
-'
-'        Dim slen&
-'        slen = signiflen16
-'
-'        If Left$(h, slen) = String$(slen, "f") Then
-'            m = "0"
-'            If UBound(v) Then m = Left(v(1), slen)
-'            If Len(m) < slen Then
-'                m = m & String$(slen - Len(m), "0")
-'            End If
-'            s = s * -&H800
-'            e = e + eponentbias: If e < 0 Then e = 0
-'            n = HexStringToVariantFloat(VBA.Hex(s + e) & m, oCaller)
-'            Exit Sub
-'        End If
-'
-'        m = CDbl(HexToDec(h))
-'        q = Len(h)
-'    Else
-'        m = 0
-'    End If
-'
-'    w = HexToDec(CStr(v(0)))
-'    If w < 10000 Then w = CDbl(w)   'Variant Double if under 10000
-'
-'    If w + m Then
-'      On Error Resume Next
-'        n = (-1) ^ s * (w + m / PowerOf16Double(q)) * PowerOf02Double(e)
-'        If Err = 6 Then e = emax_unbias + 1: GoTo Not_A_Number
-'      On Error GoTo 0
-'    End If
-'    Exit Sub
-'
-'
-'
-'Not_A_Number:
-'    n = oCaller.Sample_SpecializedNaN(s < 0, e, h)
-'    Exit Sub
-'
-'Negative_Zero:
-'    n = oCaller.Sample_NegativeZero
-'
-'End Sub
-
-
-
 Function ULP_Distance(a, b, oCaller As Object)
     Dim max#, nan#, x As Object, y As Object
     
@@ -1289,15 +1040,13 @@ Function PrecisionComp&(a, b, oCaller As Object)
         
         d_exponent = .Func_floatExponent(Abs(a - b))
         bitsdiff = (((a_exponent + b_exponent) - 1) And -2) \ 2 - d_exponent
-        'bitsdiff = (a_exponent Or a_exponent) - 1 - d_exponent
         subn = (a_exponent = 0) And (b_exponent = 0)
             
         Select Case True
             Case subn And Abs(a - b) > 0:     PrecisionComp = 1 + bitsdiff + 1 + precision + 0 - .Func_floatExponent(Abs(a - b) * PowerOf02Double(precision - 0))
             Case d_exponent = 0:        PrecisionComp = bitsdiff + 1 + precision + 0 - .Func_floatExponent(Abs(a - b) * PowerOf02Double(precision - 0))
-            'Case d_exponent = 0:        PrecisionComp = bitsdiff + 1 + precision + 0 - .FloatExponent(diff * 4.5035996273705E+15)
             Case bitsdiff > precision:  PrecisionComp = 0
-            Case bitsdiff > 0:          PrecisionComp = bitsdiff + 1  '-(a_exponent = b_exponent) - -(a_exponent <> b_exponent)
+            Case bitsdiff > 0:          PrecisionComp = bitsdiff + 1
             Case bitsdiff = 0:          PrecisionComp = -(a_exponent = b_exponent)
         End Select
 
@@ -1373,7 +1122,6 @@ End Function
 Public Function Base1E6ToBase10$(op1, Optional padZeros = 0, Optional radixpointpos& = 0)
     Dim j&, t$
     
-    'Base1E6ToBase10 = String$(52, "0")
     Base1E6ToBase10 = String$(6 * UBound(op1), "0")
     
     For j = 1 To UBound(op1)
@@ -1381,12 +1129,6 @@ Public Function Base1E6ToBase10$(op1, Optional padZeros = 0, Optional radixpoint
         Mid$(Base1E6ToBase10, Len(Base1E6ToBase10) - j * 6 + 1 + 6 - Len(t)) = t
     Next
     
-'    If padZeros Then
-'        Select Case padZeros
-'            Case 52: Base1E6ToBase10 = Right$(Base1E6ToBase10, padZeros)
-'            Case 23: Base1E6ToBase10 = Mid$(Base1E6ToBase10, 3, padZeros)
-'        End Select
-'    End If
     
     If padZeros Then Base1E6ToBase10 = Mid$(Base1E6ToBase10, 3, padZeros)
     
@@ -1399,20 +1141,10 @@ Public Function Base1E6ToBase10$(op1, Optional padZeros = 0, Optional radixpoint
         Exit Function
     End If
 
-'    For j = 1 To Len(Base1E6ToBase10)
-'        If Mid$(Base1E6ToBase10, j, 1) <> "0" Then
-'            Base1E6ToBase10 = Mid$(Base1E6ToBase10, j)
-'            Exit For
-'        End If
-'    Next
-    
-    
-    'Base1E6ToBase10 = Me.TrimTrailingZeros(Base1E6ToBase10)
     
     If padZeros Then
         If padZeros > Len(Base1E6ToBase10) Then
             t = String(padZeros, "0")
-            'Mid$(t, Len(Base1E6ToBase10)) = Base1E6ToBase10
             Mid$(t, 53 - Len(Base1E6ToBase10)) = Base1E6ToBase10
             Base1E6ToBase10 = t
         Else
@@ -1421,15 +1153,6 @@ Public Function Base1E6ToBase10$(op1, Optional padZeros = 0, Optional radixpoint
     End If
     
     Base1E6ToBase10 = Me.TrimTrailingZeros(Base1E6ToBase10)
-
-'    For j = 1 To Len(Base1E6ToBase10)
-'        If Mid$(Base1E6ToBase10, j, 1) <> "0" Then
-'            Base1E6ToBase10 = Mid$(Base1E6ToBase10, j)
-'            Exit For
-'        End If
-'    Next
-    
-'    Base1E6ToBase10 = Me.TrimTrailingZeros(Base1E6ToBase10)
     
 End Function
 
