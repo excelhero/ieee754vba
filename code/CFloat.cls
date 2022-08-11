@@ -1197,7 +1197,6 @@ Public Function Base1E6Subtract$(ByVal a$, ByVal b$, Optional ENotation As Boole
         End If
         
     Else
-        'Stop
         Dim aa, bb, radixpointpos&
         
         If InStr(a, ".") = 0 Then a = a & ".0"
@@ -1277,7 +1276,7 @@ Public Function Base10ToBase1E6(n$) As Long()
 End Function
 
 Public Function Base10ToBase1E6x(n$) As Long()
-    Dim i&, z&, d&()
+    Dim i&, z&, d&(), t$
     
     ReDim d(1 To -Int(-(Len(n) / 6)))
     z = Len(n) + 1
@@ -1286,7 +1285,9 @@ Public Function Base10ToBase1E6x(n$) As Long()
         If z > 1 Then
             d(i) = Mid$(n, z, 6)
         Else
-            d(i) = Mid$(n, 1, 6 - (1 - z))
+            t = Mid$(n, 1, 6 - (1 - z))
+            If t = "-" Then t = 0
+            d(i) = t
         End If
     Next
     Base10ToBase1E6x = d
@@ -1427,8 +1428,8 @@ End Function
 
 
 
-Public Function RandomIntegerBetween&(lo&, hi&)
-    RandomIntegerBetween = Int((hi - lo + 1) * Rnd + lo)
+Public Function RandomIntegerBetween(lo, hi)
+    RandomIntegerBetween = CFloat.Floor((hi - lo + 1) * Rnd + lo)
 End Function
 
 Public Function PowerOf02Exact$(ByVal n&)
