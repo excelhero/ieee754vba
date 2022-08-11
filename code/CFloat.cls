@@ -1357,6 +1357,267 @@ End Function
 
 
 
+Public Function CompareTypes$(ByVal n#)
+
+    Dim t$
+    
+    t = t & vbLf
+    t = t & CompareTypes_BitPattern(n, True)
+    t = t & CompareTypes_Evaluation(n)
+    t = t & CompareTypes_SubnormalAltRepresentation(n)
+    t = t & CompareTypes_Binade(n)
+    t = t & CompareTypes_FloatNumberLine(n)
+    t = t & CompareTypes_QuantizationError(n)
+    
+    CompareTypes = t
+
+End Function
+
+
+Public Function CompareTypes_BitPattern$(n#, Optional include_conncectors As Boolean)
+
+    Dim s$, d$
+    
+    CSingle.Mutate n
+    CDouble.Mutate n
+    
+    s = CSingle.Raw_Entire_Binary(1)
+    d = CDouble.Raw_Entire_Binary(1)
+    s = Left$(s, 1) & "    " & Mid$(s, 3)
+
+    s = "   0b" & s
+    d = "   0b" & d
+    
+    s = Left$(s, 6) & "        " & Mid$(s, 8)
+    d = Left$(d, 6) & "        " & Mid$(d, 8)
+    
+    s = Left$(s, 25) & "       " & Mid$(s, 26) & Space$(35) & CSingle.Value_HexFloatingPointLiteral
+    d = Left$(d, 25) & "       " & Mid$(d, 26) & Space$(6) & CDouble.Value_HexFloatingPointLiteral
+    
+    s = s & Space$(118 - Len(s)) & "0x" & CSingle.Raw_Entire_Hexadecimal
+    d = d & Space$(118 - Len(d)) & "0x" & CDouble.Raw_Entire_Hexadecimal
+    
+
+    Mid$(s, 15, 1) = Mid$(s, 18, 1): Mid$(s, 18, 1) = " "
+
+    CompareTypes_BitPattern = s & vbLf & d & vbLf
+    
+    If include_conncectors Then
+        CompareTypes_BitPattern = CompareTypes_BitPattern & "     |        |                  |" & Space$(60) & vbLf
+        CompareTypes_BitPattern = CompareTypes_BitPattern & "     |        |                  |" & Space$(60) & vbLf
+    End If
+    
+End Function
+
+Public Function CompareTypes_Evaluation$(n#)
+
+    Dim s$, d$, p&
+    
+    CSingle.Mutate n
+    CDouble.Mutate n
+    
+    s = CSingle.Value_Formula_Evaluation
+    d = CDouble.Value_Formula_Evaluation
+        
+    s = Replace(s, "*", " * ")
+    p = InStr(1 + 0, s, "*")
+    p = InStr(p + 1, s, "*")
+    s = Left$(s, p - 1) & Space$(29 - p) & "*" & Mid$(s, p + 1)
+    s = s & Space$(91 - Len(s)) & CSingle & " = " & CSingle.Value_IntegerRatio & vbLf
+    
+    d = Replace(d, "*", " * ")
+    p = InStr(1 + 0, d, "*")
+    p = InStr(p + 1, d, "*")
+    d = Left$(d, p - 1) & Space$(29 - p) & "*" & Mid$(d, p + 1)
+    d = d & Space$(91 - Len(d)) & CDouble & " = " & CDouble.Value_IntegerRatio & vbLf
+        
+    CompareTypes_Evaluation = s & d & vbLf
+
+End Function
+
+
+Public Function CompareTypes_Binade$(n#)
+
+    Dim s$, d$, p&, q&, t$
+    
+    CSingle.Mutate n
+    CDouble.Mutate n
+    
+    s = Replace(CSingle.Value_BinadeIntervalVerbose, "|", "")
+    d = Replace(CDouble.Value_BinadeIntervalVerbose, "|", "")
+    
+    
+    p = InStr(1, d, "Index")
+    If p > InStr(1, s, "Index") Then
+        s = Replace(s, "Index", Space$(p - InStr(1, s, "Index")) & "Index")
+    End If
+    
+    p = InStr(1, d, "of")
+    s = Replace(s, "of", Space$(p - InStr(1, s, "of")) & "of")
+    
+    p = InStrRev(d, " ")
+    q = InStrRev(s, " ")
+    If p <> q Then s = Left$(s, q) & Space$(p - q - 1) & Mid$(s, q)
+
+    If LenB(s) <> LenB(d) Then
+        If LenB(s) < LenB(d) Then
+            t = t & "  " & s & Space$(Len(d) - Len(s) + 2) & "ULP: " & CSingle.Value_ULP & vbLf
+            t = t & "  " & d & Space$(2) & "ULP: " & CDouble.Value_ULP & vbLf & vbLf
+        End If
+    Else
+        t = t & "  " & s & Space$(2) & "ULP: " & CSingle.Value_ULP & vbLf
+        t = t & "  " & d & Space$(2) & "ULP: " & CDouble.Value_ULP & vbLf & vbLf
+    End If
+    
+    CompareTypes_Binade = t
+
+End Function
+
+
+Public Function CompareTypes_QuantizationError$(n#)
+
+    Dim s$, d$, p&, t$, z$
+    
+    CSingle.Mutate n
+    CDouble.Mutate n
+
+    If CSingle.Value_Is_NaN Then
+        s = 0
+    ElseIf CSingle.Value = 0 And CDouble.Value > 0 Then
+        z = CFloat.Base1E6Subtract(0, CDouble.Value_Exact(False), False)
+        If Len(z) > 10 Then z = CFloat.Base1E6Subtract(0, CDouble.Value_Exact(False), True)
+        s = z
+    Else
+        z = CFloat.Base1E6Subtract(CSingle.Value_Exact(False), Format(n, "0.#################"), False)
+        If Len(z) > 10 Then z = CFloat.Base1E6Subtract(CSingle.Value_Exact(False), Format(n, "0.#################"), True)
+        s = z
+    End If
+    If Right$(s, 1) = "." Then s = Left$(s, Len(s) - 1)
+    If s = "-0" Then s = "0"
+    If s = "-0.0" Then s = "0"
+    If Left$(s, 1) <> "-" Then s = " " & s
+    s = "Quantization Error: " & s
+    z = CSingle.Value_Exact(False): If Len(z) > 10 Then z = CSingle.Value_Exact(True)
+    
+    s = s & "    Exact Stored Value: " & z & vbLf
+    
+    If CDouble.Value_Is_NaN Then
+        d = 0
+    Else
+        z = CFloat.Base1E6Subtract(Replace(CDouble.Value_Exact(False), "-", ""), Format(Abs(n), "0.#################"), False)
+        If Len(z) > 10 Then z = CFloat.Base1E6Subtract(Replace(CDouble.Value_Exact(False), "-", ""), Format(Abs(n), "0.#################"), True)
+        d = z
+    End If
+    If Right$(d, 1) = "." Then d = Left$(d, Len(d) - 1)
+    If d = "-0" Then d = "0"
+    If d = "-0.0" Then d = "0"
+    If Left$(d, 1) <> "-" Then d = " " & d
+    d = "Quantization Error: " & d
+    z = CDouble.Value_Exact(False): If Len(z) > 10 Then z = CDouble.Value_Exact(True)
+    d = d & "    Exact Stored Value: " & z & vbLf
+    
+    If InStr(1, d, "Exact Stored Value") >= InStr(1, s, "Exact Stored Value") Then
+        p = InStr(1, d, "Exact Stored Value")
+        s = Replace(s, "Exact Stored Value", Space$(p - InStr(1, s, "Exact Stored Value")) & "Exact Stored Value")
+    Else
+        p = InStr(1, s, "Exact Stored Value")
+        d = Replace(d, "Exact Stored Value", Space$(p - InStr(1, d, "Exact Stored Value")) & "Exact Stored Value")
+    End If
+    
+    t = t & s & d & vbLf
+
+    CompareTypes_QuantizationError = t
+    
+End Function
+
+
+
+
+Public Function CompareTypes_SubnormalAltRepresentation$(n#)
+
+    Dim b$, s$, d$, j$, p&, q&, t$, z$
+    
+    CSingle.Mutate n
+    CDouble.Mutate n
+
+    s = vbNullString
+    If CSingle.Value_Is_Subnormal Then
+        b = Trim$(CSingle.Raw_Entire_Binary(1, , True))
+        b = "     " & Left$(b, 1) & "        " & Mid$(b, 3)
+        p = InStr(9, b, "1 ")
+        j = "     |        |                                  "
+        If p Then
+            Mid$(j, p, 3) = "| |"
+        Else
+            p = Len(b)
+            Mid$(j, p, 1) = "|"
+        End If
+        
+        z = Replace(CSingle.Value_Formula_Evaluation(, , True), "* 2", "  * 2") & "   =   " & CSingle
+        q = InStr(z, "* 1")
+        z = Left$(z, q - 1) & Space$(p - q - 2) & Mid$(z, q)
+    
+        s = s & "--binary32 Subnormal Alternative Normalized Interpretation---------------------------" & vbLf
+        s = s & b & vbLf
+        s = s & j & vbLf
+        s = s & z & vbLf
+        s = s & vbLf
+        s = s & "  " & Replace(CSingle.Value_BinadeIntervalVerbose(True), "|", vbNullString) & vbLf
+        s = s & "-------------------------------------------------------------------------------------" & vbLf
+        s = s & vbLf
+    End If
+    
+    
+    's = vbNullString
+    If CDouble.Value_Is_Subnormal Then
+        b = Trim$(CDouble.Raw_Entire_Binary(1, , True))
+        b = "     " & Left$(b, 1) & "        " & Mid$(b, 3)
+        p = InStr(9, b, "1 ")
+        j = "     |        |                                                                       "
+        If p Then
+            Mid$(j, p, 3) = "| |"
+        Else
+            p = Len(b)
+            Mid$(j, p, 1) = "|"
+        End If
+        
+        z = Replace(CDouble.Value_Formula_Evaluation(, , True), "* 2", "  * 2") & "   =   " & CDouble
+        q = InStr(z, "* 1")
+        z = Left$(z, q - 1) & Space$(p - q - 2) & Mid$(z, q)
+    
+        s = s & "--binary64 Subnormal Alternative Normalized Interpretation-------------------------------------------------" & vbLf
+        s = s & b & vbLf
+        s = s & j & vbLf
+        s = s & z & vbLf
+        s = s & vbLf
+        s = s & "  " & Replace(CDouble.Value_BinadeIntervalVerbose(True), "|", vbNullString) & vbLf
+        s = s & "-----------------------------------------------------------------------------------------------------------" & vbLf
+        s = s & vbLf
+    End If
+
+    CompareTypes_SubnormalAltRepresentation = s
+    
+End Function
+
+
+Public Function CompareTypes_FloatNumberLine$(n#)
+
+    Dim t$
+    
+    CSingle.Mutate n
+    CDouble.Mutate n
+
+    t = t & FloatNumberLine(CSingle.Value) & vbLf
+    t = t & FloatNumberLine(CDouble.Value) & vbLf & vbLf
+    
+    CompareTypes_FloatNumberLine = t
+
+End Function
+
+
+
+
+
 
 
 
@@ -1599,4 +1860,5 @@ Public Function CreateCache_MantissaDigits()
     
     CreateCache_MantissaDigits = mDigits
 End Function
+
 

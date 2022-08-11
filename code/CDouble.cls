@@ -1547,8 +1547,8 @@ Public Function Mutate_RandomInBinade(BinadeExponent&, Optional bIncludeNegative
             'Subnormal
             Dim reduced_significand_size&
             Me.Value_Exponent_Base10 = Me.Spec_ExponentMin
-            reduced_significand_size = Abs(EXPONENT_MIN_SUBNORMAL_EXPANSION) - Abs(BinadeExponent)
-            Me.Raw_Mantissa_Decimal = CFloat.RandomIntegerBetween(-(Not bIncludeZero), CDec(2 ^ reduced_significand_size - 1))
+            reduced_significand_size = -EXPONENT_MIN_SUBNORMAL_EXPANSION - -BinadeExponent
+            Me.Raw_Mantissa_Decimal = CFloat.RandomIntegerBetween(-(Not bIncludeZero), CFloat.PowerOf02Double(reduced_significand_size) - 1)
             If Not bIncludeZero Then Me.Raw_Bit(reduced_significand_size + 1) = 1
     End Select
     
