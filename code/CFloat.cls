@@ -1426,6 +1426,11 @@ Public Function RadiansToDegrees#(d#)
 End Function
 
 
+
+Public Function RandomIntegerBetween&(lo&, hi&)
+    RandomIntegerBetween = Int((hi - lo + 1) * Rnd + lo)
+End Function
+
 Public Function PowerOf02Exact$(ByVal n&)
     Debug.Assert n >= -1074
     Debug.Assert n <= 1023 + 1

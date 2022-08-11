@@ -1100,6 +1100,8 @@ Public Function Mutate(Value) As CSingle
                         End If
                     Case Left$(LCase$(Value), 1) = "b"
                         Me.Raw_Entire_Binary = Value
+                    Case Left$(LCase$(Value), 2) = "0b"
+                        Me.Raw_Entire_Binary = Value
                 End Select
                     
         End Select
@@ -1532,7 +1534,7 @@ End Function
 Public Function Mutate_RandomIntegerBetween(lo&, hi&, Optional bRandomize As Boolean = False) As CSingle
     If bRandomize Then Randomize
     On Error Resume Next
-      Value = Int((hi - lo + 1) * Rnd + lo)
+      Value = CFloat.RandomIntegerBetween(lo, hi)
     On Error GoTo 0
     Set Mutate_RandomIntegerBetween = Me
 End Function
@@ -1547,13 +1549,13 @@ Public Function Mutate_RandomInBinade(BinadeExponent&, Optional negate As Boolea
         Case BinadeExponent > Spec_ExponentMin
             'Normal
             Me.Value_Exponent_Base10 = BinadeExponent
-            Me.Raw_Mantissa_Decimal = Int((CDec(RAW_MANTISSA_MAX_DECIMAL) - 0 + 1) * Rnd + 0)
+            Me.Raw_Mantissa_Decimal = CFloat.RandomIntegerBetween(0, CDec(RAW_MANTISSA_MAX_DECIMAL))
         Case Else
             'Subnormal
             Dim reduced_significand_size&
             Me.Value_Exponent_Base10 = Me.Spec_ExponentMin
             reduced_significand_size = Abs(EXPONENT_MIN_SUBNORMAL_EXPANSION) - Abs(BinadeExponent)
-            Me.Raw_Mantissa_Decimal = Int((CDec(2 ^ reduced_significand_size - 1) - 0 + 1) * Rnd + 0)
+            Me.Raw_Mantissa_Decimal = CFloat.RandomIntegerBetween(0, CDec(2 ^ reduced_significand_size - 1))
             Me.Raw_Bit(reduced_significand_size + 1) = 1
     End Select
     
@@ -1566,26 +1568,28 @@ Public Function Mutate_RandomSubnormal(Optional bRandomize As Boolean = False) A
     Dim b&
     If bRandomize Then Randomize
     b = Abs(EXPONENT_MIN - EXPONENT_MIN_SUBNORMAL_EXPANSION)
-    b = Abs(EXPONENT_MIN) + Int(b - 0 + 1) * Rnd + 0
+    b = Abs(EXPONENT_MIN) + CFloat.RandomIntegerBetween(0, b)
     Mutate_RandomInBinade -b
     Set Mutate_RandomSubnormal = Me
 End Function
 
-Public Function Mutate_RandomNormal(Optional bRandomize As Boolean = False) As CSingle
+Public Function Mutate_RandomNormal(Optional bIncludeInfNan As Boolean, Optional bIncludeNegatives As Boolean, Optional bRandomize As Boolean) As CSingle
     If bRandomize Then Randomize
-    Me.Mutate_RandomInBinade Int((Me.Spec_ExponentMaxBiased - 1 + 1) * Rnd + 1) - EXPONENT_BIAS
+    Me.Mutate_RandomInBinade CFloat.RandomIntegerBetween(Me.Spec_ExponentMin + 1, Me.Spec_ExponentMax + Not bIncludeInfNan)
+    If bIncludeNegatives Then If CFloat.RandomIntegerBetween(0, 1) Then Me.Mutate_Negate
     Set Mutate_RandomNormal = Me
 End Function
 
-Public Function Mutate_RandomNormalSubnormal(Optional bRandomize As Boolean = False) As CSingle
+Public Function Mutate_RandomNormalSubnormal(Optional bIncludeZero As Boolean, Optional bIncludeInfNan As Boolean, Optional bIncludeNegatives As Boolean, Optional bRandomize As Boolean) As CSingle
     Dim b&
     If bRandomize Then Randomize
-    b = ((Spec_ExponentMaxBiased - 0 + 1) * Rnd + 0) - EXPONENT_BIAS
+    b = CFloat.RandomIntegerBetween(Me.Spec_ExponentMin - Not bIncludeZero, Me.Spec_ExponentMax + Not bIncludeInfNan)
     If b > EXPONENT_MIN Then
         Me.Mutate_RandomInBinade b
     Else
         Me.Mutate_RandomSubnormal
     End If
+    If bIncludeNegatives Then If CFloat.RandomIntegerBetween(0, 1) Then Me.Mutate_Negate
     Set Mutate_RandomNormalSubnormal = Me
 End Function
 
