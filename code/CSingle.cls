@@ -893,7 +893,80 @@ Public Property Get Value_FindPrecisionComp!(ByVal p&)
 End Property
 
 
+Public Property Get Value_QuantizationError(Optional UseENotationLongerThanDigits& = 21)
+    Dim s$, z$
+    
+    If Me.Value_Is_Zero Then Value_QuantizationError = 0: Exit Property
+    
+    If Me.Value_Is_NaN Or Me.Value_Is_Infinity Then
+        s = 0
+    Else
+        s = Me.Func_formatRemoveSciNotation(Abs(Me.Value))
+        If Right$(s, 2) = ".0" Then s = Left$(s, Len(z) - 2)
+        z = Me.Value_Exact(False)
+        z = Replace(z, "-", "")
+        If Right$(z, 2) = ".0" Then z = Left$(z, Len(z) - 2)
+        z = CFloat.Base1E6Subtract(z, s, UseENotationLongerThanDigits)
+        s = z
+    End If
+    If Right$(s, 1) = "." Then s = Left$(s, Len(s) - 1)
+    If s = "-0" Then s = "0"
+    If s = "-0.0" Then s = "0"
+    If Left$(s, 1) <> "-" Then s = " " & s
+    Value_QuantizationError = s
+End Property
 
+Public Property Get Value_QuantizationError_DoubleRef(n#, Optional UseENotationLongerThanDigits& = 21)
+    Dim s$, z$
+    
+    If Me.Func_isNaN(CSng(n)) Then Value_QuantizationError_DoubleRef = 0: Exit Function
+    If n = 0 Then Value_QuantizationError_DoubleRef = 0: Exit Function
+    
+    If CFloat.Floor(Log(Abs(n)) / Log(2)) > (EXPONENT_MAX - 1) Then
+        s = 0
+    Else
+        s = Me.Func_formatRemoveSciNotation(Abs(n))
+        If Right$(s, 2) = ".0" Then s = Left$(s, Len(z) - 2)
+        z = Me.Compare.Mutate(n).Value_Exact(False)
+        z = Replace(z, "-", "")
+        If Right$(z, 2) = ".0" Then z = Left$(z, Len(z) - 2)
+        z = CFloat.Base1E6Subtract(z, s, UseENotationLongerThanDigits)
+        s = z
+    End If
+    If Right$(s, 1) = "." Then s = Left$(s, Len(s) - 1)
+    If s = "-0" Then s = "0"
+    If s = "-0.0" Then s = "0"
+    If Left$(s, 1) <> "-" Then s = " " & s
+    Value_QuantizationError_DoubleRef = s
+End Property
+
+
+
+
+Public Function Func_formatRemoveSciNotation$(n)
+    Dim e&, m$, v
+    
+    Select Case True
+        Case InStr(n, "E-")
+            v = Split(CStr(n), "-")
+            m = v(0)
+            m = Left$(m, Len(m) - 1)
+            m = Replace(m, ".", vbNullString)
+            e = v(1)
+            Func_formatRemoveSciNotation = "0." & String$(e - 1, "0") & m
+            
+        Case InStr(n, "E+")
+            v = Split(CStr(n), "+")
+            m = v(0)
+            m = Left$(m, Len(m) - 1)
+            m = Replace(m, ".", vbNullString)
+            e = v(1)
+            Func_formatRemoveSciNotation = m & String$(e - Len(m) + 1, "0")
+            
+        Case Else
+            Func_formatRemoveSciNotation = n
+    End Select
+End Function
 
 
 Public Function Func_x2Power!(x!, pow&)
@@ -1076,7 +1149,11 @@ Public Function Mutate(Value) As CSingle
         Select Case True
         
             Case IsNumeric(Value)
-                Me.Value = CSng(Value)
+                If Value > Me.Sample_NormalMax Then
+                    Me.Value = Me.Sample_Infinity
+                Else
+                    Me.Value = CSng(Value)
+                End If
                 If Me.Value = 0 Then
                     If Value > 1 Then
                         If Value <> 0 Then

@@ -1114,12 +1114,12 @@ Public Function BitArrayToMantissaBase10DecimalString$(bits&(), Optional leading
     
     intval = "0"
     If leadinginteger > -1 Then intval = leadinginteger
-    BitArrayToMantissaBase10DecimalString = intval & "." & Base1E6ToBase10(tot, hi)
+    BitArrayToMantissaBase10DecimalString = intval & "." & Base1E6ToBase10(tot, hi, , True)
     'Stop
 End Function
 
 
-Public Function Base1E6ToBase10$(op1, Optional padZeros = 0, Optional radixpointpos& = 0)
+Public Function Base1E6ToBase10$(op1, Optional padZeros = 0, Optional radixpointpos& = 0, Optional bIsFraction As Boolean)
     Dim j&, t$
     
     Base1E6ToBase10 = String$(6 * UBound(op1), "0")
@@ -1152,7 +1152,25 @@ Public Function Base1E6ToBase10$(op1, Optional padZeros = 0, Optional radixpoint
         End If
     End If
     
+    Dim c&, q&
+    For j = 1 To UBound(op1)
+        If op1(j) = 0 Then
+            c = c + 6
+        Else
+            t = op1(j)
+            For q = Len(t) To 1 Step -1
+                If Mid$(t, q, 1) = 0 Then
+                    c = c + 1
+                Else
+                    GoTo TheExit
+                End If
+            Next
+        End If
+    Next
+    
+TheExit:
     Base1E6ToBase10 = Me.TrimTrailingZeros(Base1E6ToBase10)
+    If Not bIsFraction Then Base1E6ToBase10 = Base1E6ToBase10 & String$(c, "0")
     
 End Function
 
@@ -1176,7 +1194,7 @@ Public Function Base1E6Add(op1, op2) As Long()
 End Function
 
 
-Public Function Base1E6Subtract$(ByVal a$, ByVal b$, Optional ENotation As Boolean = True)
+Public Function Base1E6Subtract$(ByVal a$, ByVal b$, Optional UseENotationLongerThanDigits& = 17)
     Dim j&, s&, borrow&, tot&(), x&(), y&(), t$, bNeg As Boolean
         
     If InStr(a, "inf") Then Base1E6Subtract = "inf":  Exit Function
@@ -1228,6 +1246,12 @@ Public Function Base1E6Subtract$(ByVal a$, ByVal b$, Optional ENotation As Boole
     End If
     
     
+    If Right$(a, 2) = ".0" Then a = Left$(a, Len(a) - 2)
+    If Right$(b, 2) = ".0" Then b = Left$(b, Len(b) - 2)
+    
+    If Left$(a, 2) = "0-" Then a = Split(a, "-")(1)
+    If Left$(b, 2) = "0-" Then b = Split(b, "-")(1)
+    
     x = CFloat.Base10ToBase1E6x(a)
     y = CFloat.Base10ToBase1E6x(b)
     
@@ -1251,10 +1275,17 @@ Public Function Base1E6Subtract$(ByVal a$, ByVal b$, Optional ENotation As Boole
         tot(j) = s
     Next
     
+    '666666666676767676jglkdjfg        I think it's the    x.0  on the first term causing the error.
+    '? CFloat.Base1E6Subtract("1660093443604480.0", "1660093475923250", False)
+    
     Base1E6Subtract = CFloat.Base1E6ToBase10(tot, , radixpointpos)
     Base1E6Subtract = Replace(Base1E6Subtract, "-", vbNullString)
+    Base1E6Subtract = CFloat.TrimLeadingZeros(Base1E6Subtract)
+    
+    If Left$(Base1E6Subtract, 1) = "." Then Base1E6Subtract = "0" & Base1E6Subtract
+    
     If bNeg Then Base1E6Subtract = "-" & Base1E6Subtract
-    If ENotation Then Base1E6Subtract = E_Notation(Base1E6Subtract)
+    If Len(Base1E6Subtract) > UseENotationLongerThanDigits Then Base1E6Subtract = E_Notation(Base1E6Subtract)
 End Function
 
 
@@ -1357,6 +1388,7 @@ End Function
 
 
 
+
 Public Function CompareTypes$(ByVal n#)
 
     Dim t$
@@ -1369,17 +1401,30 @@ Public Function CompareTypes$(ByVal n#)
     t = t & CompareTypes_FloatNumberLine(n)
     t = t & CompareTypes_QuantizationError(n)
     
+    't = t & "? " & CSingle.Value_Exact & " - " & CSingle & vbLf & vbLf
+    
+    't = t & CSingle.Value_QuantizationError_DoubleRef(n)
+    
     CompareTypes = t
 
 End Function
+
+
+Public Sub SetTypesEqualToValue(n#)
+    
+    CSingle.Mutate n
+    CDouble.Mutate n
+
+End Sub
 
 
 Public Function CompareTypes_BitPattern$(n#, Optional include_conncectors As Boolean)
 
     Dim s$, d$
     
-    CSingle.Mutate n
-    CDouble.Mutate n
+    'CSingle.Mutate n
+    'CDouble.Mutate n
+    SetTypesEqualToValue n
     
     s = CSingle.Raw_Entire_Binary(1)
     d = CDouble.Raw_Entire_Binary(1)
@@ -1413,8 +1458,9 @@ Public Function CompareTypes_Evaluation$(n#)
 
     Dim s$, d$, p&
     
-    CSingle.Mutate n
-    CDouble.Mutate n
+    'CSingle.Mutate n
+    'CDouble.Mutate n
+    SetTypesEqualToValue n
     
     s = CSingle.Value_Formula_Evaluation
     d = CDouble.Value_Formula_Evaluation
@@ -1440,8 +1486,9 @@ Public Function CompareTypes_Binade$(n#)
 
     Dim s$, d$, p&, q&, t$
     
-    CSingle.Mutate n
-    CDouble.Mutate n
+    'CSingle.Mutate n
+    'CDouble.Mutate n
+    SetTypesEqualToValue n
     
     s = Replace(CSingle.Value_BinadeIntervalVerbose, "|", "")
     d = Replace(CDouble.Value_BinadeIntervalVerbose, "|", "")
@@ -1474,47 +1521,58 @@ Public Function CompareTypes_Binade$(n#)
 End Function
 
 
+Public Function FormatRemoveSciNotation$(n#)
+    Dim e&, m$, v
+    
+    Select Case True
+        Case InStr(n, "E-")
+            v = Split(CStr(n), "-")
+            m = v(0)
+            m = Left$(m, Len(m) - 1)
+            m = Replace(m, ".", vbNullString)
+            e = v(1)
+            FormatRemoveSciNotation = "0." & String$(e - 1, "0") & m
+            
+        Case InStr(n, "E+")
+            v = Split(CStr(n), "+")
+            m = v(0)
+            m = Left$(m, Len(m) - 1)
+            m = Replace(m, ".", vbNullString)
+            e = v(1)
+            FormatRemoveSciNotation = m & String$(e - Len(m) + 1, "0")
+            
+        Case Else
+            FormatRemoveSciNotation = n
+    End Select
+End Function
+
+
 Public Function CompareTypes_QuantizationError$(n#)
 
     Dim s$, d$, p&, t$, z$
     
-    CSingle.Mutate n
-    CDouble.Mutate n
+    'CSingle.Mutate n
+    'CDouble.Mutate n
+    SetTypesEqualToValue n
 
-    If CSingle.Value_Is_NaN Then
-        s = 0
-    ElseIf CSingle.Value = 0 And CDouble.Value > 0 Then
-        z = CFloat.Base1E6Subtract(0, CDouble.Value_Exact(False), False)
-        If Len(z) > 10 Then z = CFloat.Base1E6Subtract(0, CDouble.Value_Exact(False), True)
-        s = z
-    Else
-        z = CFloat.Base1E6Subtract(CSingle.Value_Exact(False), Format(n, "0.#################"), False)
-        If Len(z) > 10 Then z = CFloat.Base1E6Subtract(CSingle.Value_Exact(False), Format(n, "0.#################"), True)
-        s = z
-    End If
-    If Right$(s, 1) = "." Then s = Left$(s, Len(s) - 1)
-    If s = "-0" Then s = "0"
-    If s = "-0.0" Then s = "0"
-    If Left$(s, 1) <> "-" Then s = " " & s
-    s = "Quantization Error: " & s
-    z = CSingle.Value_Exact(False): If Len(z) > 10 Then z = CSingle.Value_Exact(True)
     
+    s = CSingle.Value_QuantizationError_DoubleRef(n, 21)
+        
+    s = "Quantization Error: " & s
+    z = CSingle.Value_Exact(False): If Len(z) > 21 Then z = CSingle.Value_Exact(True)
     s = s & "    Exact Stored Value: " & z & vbLf
     
-    If CDouble.Value_Is_NaN Then
-        d = 0
-    Else
-        z = CFloat.Base1E6Subtract(Replace(CDouble.Value_Exact(False), "-", ""), Format(Abs(n), "0.#################"), False)
-        If Len(z) > 10 Then z = CFloat.Base1E6Subtract(Replace(CDouble.Value_Exact(False), "-", ""), Format(Abs(n), "0.#################"), True)
-        d = z
-    End If
-    If Right$(d, 1) = "." Then d = Left$(d, Len(d) - 1)
-    If d = "-0" Then d = "0"
-    If d = "-0.0" Then d = "0"
-    If Left$(d, 1) <> "-" Then d = " " & d
+    
+    
+    
+    d = CDouble.Value_QuantizationError(21)
+    
     d = "Quantization Error: " & d
-    z = CDouble.Value_Exact(False): If Len(z) > 10 Then z = CDouble.Value_Exact(True)
+    z = CDouble.Value_Exact(False): If Len(z) > 21 Then z = CDouble.Value_Exact(True)
     d = d & "    Exact Stored Value: " & z & vbLf
+    
+    
+    
     
     If InStr(1, d, "Exact Stored Value") >= InStr(1, s, "Exact Stored Value") Then
         p = InStr(1, d, "Exact Stored Value")
@@ -1537,8 +1595,9 @@ Public Function CompareTypes_SubnormalAltRepresentation$(n#)
 
     Dim b$, s$, d$, j$, p&, q&, t$, z$
     
-    CSingle.Mutate n
-    CDouble.Mutate n
+    'CSingle.Mutate n
+    'CDouble.Mutate n
+    SetTypesEqualToValue n
 
     s = vbNullString
     If CSingle.Value_Is_Subnormal Then
@@ -1604,8 +1663,9 @@ Public Function CompareTypes_FloatNumberLine$(n#)
 
     Dim t$
     
-    CSingle.Mutate n
-    CDouble.Mutate n
+    'CSingle.Mutate n
+    'CDouble.Mutate n
+    SetTypesEqualToValue n
 
     t = t & FloatNumberLine(CSingle.Value) & vbLf
     t = t & FloatNumberLine(CDouble.Value) & vbLf & vbLf
@@ -1613,6 +1673,126 @@ Public Function CompareTypes_FloatNumberLine$(n#)
     CompareTypes_FloatNumberLine = t
 
 End Function
+
+
+
+Public Function FloatNumberLine$(n)
+    Dim s$, p&, zero&, subna&, subnb&, normmin&, normmax&, one&, extentbeforeone&, extentpastone&
+    Dim subnmidvalue, normminvalue, normunderone, maxmagexp&
+    Dim legendleftmax$, legendleftmin$, legendrightmin$, legendrightmax$
+
+    Select Case VarType(n)
+        Case vbDouble
+        
+            subnmidvalue = 2 ^ ((-1074 + -1023) / 2)
+            normminvalue = CDouble.Sample_NormalMin.Value
+            normunderone = 2 ^ -4
+            maxmagexp = 308
+            legendleftmax = "-E+" & maxmagexp
+            legendleftmin = "-E-" & maxmagexp
+            legendrightmin = "+E-" & maxmagexp
+            legendrightmax = "+E+" & maxmagexp
+            
+            
+        
+        Case vbSingle
+        
+            subnmidvalue = 2 ^ ((-149 + -127) / 2)
+            normminvalue = CSingle.Sample_NormalMin.Value
+            normunderone = 2 ^ -2
+            maxmagexp = 38
+            legendleftmax = " -E+" & maxmagexp
+            legendleftmin = " -E-" & maxmagexp
+            legendrightmin = "+E-" & maxmagexp & " "
+            legendrightmax = "+E+" & maxmagexp & " "
+        
+        Case Else
+            Stop
+        
+    End Select
+
+
+    zero = 67
+    subna = 72
+    subnb = subna + 1
+    normmin = subnb + 1
+    extentbeforeone = 12
+    extentpastone = 42
+    one = normmin + extentbeforeone
+    normmax = one + extentpastone
+
+
+    s = s & "                                                                                                                                     " & vbLf
+    s = s & "     |        ‹    ‹    ‹    ‹  ‹  ‹  ‹ ‹ ‹ ‹‹‹|«««««««««««|……    |    ……|»»»»»»»»»»»|››› › › ›  ›  ›  ›    ›    ›    ›        |     " & vbLf
+    's = s & "     |                                         |           |      |      |           |                                         |     " & vbLf
+    s = s & "-+++++                                        -1      ------      0      +-----      +1                                        ++++++" & vbLf
+
+    s = Replace(s, "-+++++", legendleftmax)
+    s = Replace(s, "------", legendleftmin)
+    s = Replace(s, "+-----", legendrightmin)
+    s = Replace(s, "++++++", legendrightmax)
+
+    If VarType(n) = vbSingle Then
+        If CSingle.Func_isNaN(CSng(n)) Then
+            p = normmax + 3
+            GoTo TheExit
+        End If
+        If CSingle.Func_isInfinity(CSng(n)) Then
+            p = normmax + 1
+            GoTo TheExit
+        End If
+    End If
+    
+    If VarType(n) = vbDouble Then
+        If CDouble.Func_isNaN(CDbl(n)) Then
+            p = normmax + 3
+            GoTo TheExit
+        End If
+        If CDouble.Func_isInfinity(CDbl(n)) Then
+            p = normmax + 1
+            GoTo TheExit
+        End If
+    End If
+        
+        
+    If n = 0 Then
+        p = zero
+    Else
+    
+        Select Case Abs(n)
+            Case Is < subnmidvalue:   p = subna
+            Case Is < normminvalue:   p = subnb
+            
+            Case Is < normunderone
+                p = one - 1 - (extentbeforeone - 1) * EaseOutSine(((Log(Abs(n)) / Log(10)) / (-maxmagexp / (one - normmin))) / (extentbeforeone + 2))
+            
+            Case Else
+                p = one + extentpastone * EaseOutSine(((Log(Abs(n)) / Log(10)) / (maxmagexp / (normmax - one))) / extentpastone)
+            
+        End Select
+        
+    End If
+    
+    
+TheExit:
+    If Left(n, 1) = "-" Then p = zero - (p - zero)
+    Mid$(s, p, 1) = "x"
+    FloatNumberLine = s
+
+End Function
+
+
+Function EaseOutSine#(x#)
+    EaseOutSine = Sin((x * CFloat.PI_VariantDecimal) / 2)
+End Function
+
+Function EaseOutExpo#(x#)
+    If x = 1 Then EaseOutExpo = 1: Exit Function
+    EaseOutExpo = 1 - CFloat.Power(2, -10 * x)
+End Function
+
+
+
 
 
 

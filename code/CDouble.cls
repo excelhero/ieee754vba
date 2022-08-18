@@ -899,6 +899,55 @@ End Property
 
 
 
+Public Property Get Value_QuantizationError(Optional UseENotationLongerThanDigits& = 21)
+    Dim d$, z$
+    
+    If Me.Value_Is_NaN Then Value_QuantizationError = 0: Exit Function
+    If Me.Value_Is_Zero Then Value_QuantizationError = 0: Exit Property
+    
+    If Me.Value_Is_NaN Or Me.Value_Is_Infinity Then
+        d = 0
+    Else
+        d = Me.Func_formatRemoveSciNotation(Abs(Me.Value))
+        If Right$(d, 2) = ".0" Then d = Left$(d, Len(z) - 2)
+        z = Me.Value_Exact(False)
+        z = Replace(z, "-", "")
+        If Right$(z, 2) = ".0" Then z = Left$(z, Len(z) - 2)
+        z = CFloat.Base1E6Subtract(z, d, UseENotationLongerThanDigits)
+        d = z
+    End If
+    If Right$(d, 1) = "." Then d = Left$(d, Len(d) - 1)
+    If d = "-0" Then d = "0"
+    If d = "-0.0" Then d = "0"
+    If Left$(d, 1) <> "-" Then d = " " & d
+    Value_QuantizationError = d
+End Property
+
+Public Function Func_formatRemoveSciNotation$(n)
+    Dim e&, m$, v
+    
+    Select Case True
+        Case InStr(n, "E-")
+            v = Split(CStr(n), "-")
+            m = v(0)
+            m = Left$(m, Len(m) - 1)
+            m = Replace(m, ".", vbNullString)
+            e = v(1)
+            Func_formatRemoveSciNotation = "0." & String$(e - 1, "0") & m
+            
+        Case InStr(n, "E+")
+            v = Split(CStr(n), "+")
+            m = v(0)
+            m = Left$(m, Len(m) - 1)
+            m = Replace(m, ".", vbNullString)
+            e = v(1)
+            Func_formatRemoveSciNotation = m & String$(e - Len(m) + 1, "0")
+            
+        Case Else
+            Func_formatRemoveSciNotation = n
+    End Select
+End Function
+
 
 Public Function Func_x2Power#(x#, pow&)
 
