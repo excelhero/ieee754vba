@@ -91,6 +91,716 @@ Private Const HEX_PI________POSITIVE$ = "40490FDB"
 Private Const HEX_E_________POSITIVE$ = "402DF854"
 
 
+
+
+
+
+
+
+
+
+Public Function Func_calculateQuotient(op1!, op2!)
+    Dim s_op1, e_op1_b, e_op1_d, m_op1, i_op1
+    Dim s_op2, e_op2_b, e_op2_d, m_op2, i_op2
+    Dim s_res, e_res, m_res, m_size_x2&
+    Dim s$, tmp$, blank$, headertemplate$, newrowtemplate$, rounded$, normshift$
+    Dim bRequiresNormalization As Boolean, bSubnormal As Boolean, bUnderflow As Boolean, bOverflow As Boolean
+    Dim res_fromops, res_frombitpattern, mutatebitpattern$
+    Dim quot!, fields
+    
+    Const LINE_WIDTH& = 143, TAB1& = 27, TAB2& = 40, TAB3& = 57
+    
+    m_size_x2 = 2 * MANTISSA_SIZE
+    
+    On Error Resume Next
+        quot = op1 / op2
+    On Error GoTo 0
+    
+    
+    With CFloat
+        .EnumerateFloat op1, Me, s_op1, e_op1_b, e_op1_d, m_op1, i_op1
+        .EnumerateFloat op2, Me, s_op2, e_op2_b, e_op2_d, m_op2, i_op2
+        
+        
+        s_res = s_op1 Xor s_op2
+        
+        e_res = e_op1_d - e_op2_d + EXPONENT_BIAS
+        If e_res < 0 Then bUnderflow = True
+        If e_res >= RAW_EXPONENT_MAX Then bOverflow = True
+        
+        m_res = (CDec(.BinToDec(i_op1 & m_op1)) / CDec(.BinToDec(i_op2 & m_op2))) * .PowerOf02Exact(m_size_x2)
+        
+        m_res = .DecToBin(m_res)
+        If Len(m_res) = m_size_x2 Then
+            m_res = "0" & m_res
+            bRequiresNormalization = True
+        End If
+        
+        
+        ReDim fields(1 To 3)
+        fields(1) = Array(TAB1, TAB1 + 5 - 1, "Right")
+        fields(2) = Array(TAB2, TAB2 + 10 - 1, "Split")
+        fields(3) = Array(TAB3, TAB3 + 81 - 1, "Decimal", TAB3 + 2)
+        
+        blank = String$(LINE_WIDTH, " ") & vbLf
+        newrowtemplate = .StringOverwrites(blank, "|", TAB1 + 7, "|", TAB3 - 5)
+        headertemplate = .StringOverwrites(String$(LINE_WIDTH, "_") & vbLf, "|", TAB1 + 7, "|", TAB3 - 5)
+    
+
+
+        s = s & .StringOverwrites(blank, "a = " & op1, 1)
+        s = s & .StringOverwrites(blank, "b = " & op2, 1)
+        s = s & blank
+        s = s & .StringOverwrites(blank, "a / b = " & quot, 1)
+        s = s & blank
+    
+    
+    
+        'Bits___________________Sign__|_______Exponent__|_______Mantissa____________________________________________________________________________
+        s = s & .StringOverwriteX(headertemplate, fields, "Bits", 1, "Sign", TAB1, "Exponent", TAB2, "Mantissa", TAB3)
+        s = s & .StringOverwriteX(newrowtemplate, fields, "a", 2, s_op1, TAB1, e_op1_b, TAB2, m_op1, TAB3)
+        s = s & .StringOverwriteX(newrowtemplate, fields, "b", 2, s_op2, TAB1, e_op2_b, TAB2, m_op2, TAB3)
+        s = s & blank
+        
+        
+                
+        'Quotient Sign___________Sign__|_________________|___________________________________________________________________________________________
+        s = s & .StringOverwriteX(headertemplate, fields, "Quotient Sign", 1, "Sign", TAB1)
+        s = s & .StringOverwriteX(newrowtemplate, fields, "a", 2, s_op1, TAB1)
+        s = s & .StringOverwriteX(newrowtemplate, fields, "b", 2, "xor " & s_op2, TAB1)
+        s = s & .StringOverwriteX(newrowtemplate, fields, "-----", TAB1)
+        s = s & .StringOverwriteX(newrowtemplate, fields, "result", 2, s_res, TAB1)
+        s = s & blank
+                        
+        
+        
+        'Quotient Exponent_____________|_______Exponent__|___________________________________________________________________________________________
+        s = s & .StringOverwriteX(headertemplate, fields, "Quotient Exponent", 1, "Exponent", TAB2)
+        s = s & .StringOverwriteX(newrowtemplate, fields, "a", 2, e_op1_b, TAB2)
+        s = s & .StringOverwriteX(newrowtemplate, fields, "b", 2, "- " & e_op2_b, TAB2)
+        s = s & .StringOverwriteX(newrowtemplate, fields, "bias " & EXPONENT_BIAS, 2, "+ " & "0" & String$(EXPONENT_SIZE - 1, "1"), TAB2)
+        s = s & .StringOverwriteX(newrowtemplate, fields, String$(EXPONENT_SIZE + 2, "-"), TAB2)
+        s = s & .StringOverwriteX(newrowtemplate, fields, "result", 2, IIf(bUnderflow, "-", " ") & .DecToBin(Abs(e_res), IIf(e_res <= RAW_EXPONENT_MAX, EXPONENT_SIZE, 1 + EXPONENT_SIZE)), TAB2)
+        s = s & .StringOverwriteX(newrowtemplate, fields, "base10", 3, e_res, TAB2)
+        s = s & blank
+    
+    
+    
+        'Quotient Mantissa_____________|_________________|_______Mantissa____________________________________________________________________________
+        s = s & .StringOverwriteX(headertemplate, fields, "Quotient Mantissa", 1, "Mantissa", TAB3)
+        s = s & .StringOverwriteX(newrowtemplate, fields, "a", 2, i_op1 & "." & m_op1, TAB3)
+        s = s & .StringOverwriteX(newrowtemplate, fields, "b", 2, i_op2 & "." & m_op2, TAB3, "÷", TAB3 - 2)
+        s = s & .StringOverwriteX(newrowtemplate, fields, "----------------------------¦----------------------", TAB3 - 2)
+        
+                tmp = Left$(m_res, Len(m_res) - m_size_x2) & "." & Right$(m_res, m_size_x2)
+        s = s & .StringOverwriteX(newrowtemplate, fields, "result", 2, tmp, TAB3)
+    
+        Select Case True
+            Case e_res < 0
+                If e_res > (EXPONENT_MIN_SUBNORMAL_EXPANSION - 1) Then bSubnormal = True
+                normshift = " * 2^(" & e_res & ")"
+                m_res = String$(-e_res - -0, "0") & m_res
+                s = s & .StringOverwriteX(newrowtemplate, fields, "subnormalization:" & normshift, 2, "0." & m_res, TAB3)
+                
+            Case e_res = 0
+                If Len(m_res) < (m_size_x2 + 2) Then
+                    bSubnormal = True
+                    normshift = " * 2^(-1)"
+                    s = s & .StringOverwriteX(newrowtemplate, fields, "subnormalization:" & normshift, 2, "0." & m_res & normshift, TAB3)
+                Else
+                    bSubnormal = False
+                    bRequiresNormalization = True
+                    normshift = " * 2^(-1)"
+                    m_res = Mid$(m_res, 2)
+                    s = s & .StringOverwriteX(newrowtemplate, fields, "normalization:" & normshift, 2, Left$(m_res, 1) & "." & m_res & normshift, TAB3)
+                End If
+                
+            Case e_res = 1
+                Select Case Mid$(m_res, 1, 1)
+                    Case "1": bSubnormal = False
+                    Case "0": bSubnormal = True
+                End Select
+                m_res = Mid$(m_res, 2)
+                
+                
+            Case bOverflow
+                    If (Not bRequiresNormalization) Or (e_res > RAW_EXPONENT_MAX) Then
+                        m_res = String$(MANTISSA_SIZE, "0")
+                        s = s & .StringOverwriteX(newrowtemplate, fields, "overflow", 2, m_res, TAB3)
+                    Else
+                        m_res = Mid$(m_res, 3)
+                        normshift = " * 2^(1)"
+                        tmp = "1." & m_res & normshift
+                        bOverflow = False
+                    End If
+                    
+            Case Else
+                If bRequiresNormalization Then
+                    If e_res > 0 Then
+                        m_res = Mid$(m_res, 3)
+                        normshift = " * 2^(1)"
+                        tmp = "1." & m_res & normshift
+                    Else
+                        'Does this ever happen????
+                        Stop
+                        '''normshift = " * 2^(-1)"
+                        '''tmp = "1." & Mid$(m_res, 3) & normshift
+                    End If
+                    s = s & .StringOverwriteX(newrowtemplate, fields, "normalization:" & normshift, 2, tmp, TAB3)
+                Else
+                    m_res = Mid$(m_res, 2)
+                End If
+                
+        End Select
+    
+        If Not bOverflow Then
+            rounded = .RoundToNearestNeighbor(m_res, MANTISSA_SIZE)
+            If e_res < 0 Then
+                tmp = "0." & rounded
+            ElseIf e_res = 0 Or e_res = 1 Then
+                If bSubnormal Then
+                    tmp = "0." & rounded
+                Else
+                    tmp = "1." & rounded
+                End If
+            Else
+                tmp = "1." & rounded & IIf(bRequiresNormalization, " * 2^(1)", vbNullString)
+            End If
+            s = s & .StringOverwriteX(newrowtemplate, fields, "rounded", 2, tmp, TAB3)
+        Else
+            rounded = m_res
+        End If
+        s = s & .StringOverwriteX(newrowtemplate, fields, "encoding" & IIf(bUnderflow, " (underflow)", vbNullString), 2, rounded, TAB3)
+        s = s & blank
+    
+    
+    
+        'Quotient Exp Normalization____|_______Exponent__|___________________________________________________________________________________________
+        If (bRequiresNormalization Or bOverflow) Then
+            s = s & .StringOverwriteX(headertemplate, fields, "Quotient Exp Normalization", 1, "Exponent", TAB2)
+            s = s & .StringOverwriteX(newrowtemplate, fields, "base10", 2, e_res, TAB2)
+    
+            If Not bOverflow Then
+                If bUnderflow Then
+                    s = s & .StringOverwriteX(newrowtemplate, fields, "mantissa shift:" & normshift, 2, "- " & e_res, TAB2)
+                Else
+                    s = s & .StringOverwriteX(newrowtemplate, fields, "mantissa shift:" & normshift, 2, "- 1", TAB2)
+                End If
+                s = s & .StringOverwriteX(newrowtemplate, fields, String$(EXPONENT_SIZE + 2, "-"), TAB2)
+                s = s & .StringOverwriteX(newrowtemplate, fields, "result", 2, e_res - IIf(bUnderflow, e_res, 1), TAB2)
+                s = s & .StringOverwriteX(newrowtemplate, fields, "base2", 3, .DecToBin(e_res - IIf(bUnderflow, -e_res, -bRequiresNormalization), EXPONENT_SIZE), TAB2)
+            
+            Else
+                s = s & .StringOverwriteX(newrowtemplate, fields, "overflow", 2, String$(EXPONENT_SIZE, "1"), TAB2)
+            End If
+        End If
+        s = s & blank
+        
+        
+        
+        'Quotient Encoded________Sign__|_______Exponent__|_______Mantissa____________________________________________________________________________
+        s = s & .StringOverwriteX(headertemplate, fields, "Quotient Encoded", 1, "Sign", TAB1, "Exponent", TAB2, "Mantissa", TAB3)
+        Select Case True
+            Case bUnderflow Or bSubnormal:  e_res = String$(EXPONENT_SIZE, "0")
+            Case bOverflow:                 e_res = String$(EXPONENT_SIZE, "1")
+            Case Else:                      e_res = .DecToBin(e_res - -bRequiresNormalization, EXPONENT_SIZE)
+        End Select
+        s = s & .StringOverwriteX(newrowtemplate, fields, "bits", 2, s_res, TAB1, e_res, TAB2, rounded, TAB3)
+        s = s & blank
+        
+        
+                                        
+                                        
+       '------------------------------------------------------------------------------------------------------------------------------------------------------
+    
+        mutatebitpattern = "0b " & s_res & " " & e_res & " " & rounded
+        Me.Compare.Compare.Mutate mutatebitpattern
+        res_frombitpattern = Me.Compare.Compare.Value
+        res_fromops = quot
+        
+        
+        s = s & .StringOverwriteX(blank, fields, "a / b = CSingle.Mutate(""0b", 1, s_res, TAB1, e_res, TAB2, rounded & """) = " & (res_fromops = res_frombitpattern), TAB3)
+        s = s & .StringOverwrites(blank, "a / b = " & quot, 1)
+        s = s & .StringOverwrites(blank, "a = " & op1 & ": 0x" & CSingle.Mutate(op1).Raw_Entire_Hexadecimal, 1)
+        s = s & .StringOverwrites(blank, "b = " & op2 & ": 0x" & CSingle.Mutate(op2).Raw_Entire_Hexadecimal, 1)
+        s = s & blank
+    
+    
+    End With
+    
+    Func_calculateQuotient = s
+    
+        
+        
+
+
+
+
+'                                 111110100100000000000000
+'                               x 110000010000000000000000
+'                               ---------------------------
+'                                 000000000000000000000000
+'                 111110100100000000000000
+'           111110100100000000000000
+'          111110100100000000000000
+'         -------------------------------------------------
+'         101111001010101001000000000000000000000000000000
+
+
+
+End Function
+
+
+
+
+Public Function Func_calculateProduct(op1!, op2!)
+    Dim s_op1, e_op1_b, e_op1_d, m_op1, i_op1
+    Dim s_op2, e_op2_b, e_op2_d, m_op2, i_op2
+    Dim s_res, e_res, m_res, m_size_x2&
+    Dim s$, tmp$, blank$, headertemplate$, newrowtemplate$, rounded$, normshift$
+    Dim bRequiresNormalization As Boolean, bSubnormal As Boolean, bUnderflow As Boolean, bOverflow As Boolean
+    Dim res_fromops, res_frombitpattern, mutatebitpattern$
+    Dim prod!, fields
+    
+    Const LINE_WIDTH& = 143, TAB1& = 27, TAB2& = 40, TAB3& = 57
+    
+    m_size_x2 = 2 * MANTISSA_SIZE
+    
+    On Error Resume Next
+        prod = op1 * op2
+    On Error GoTo 0
+    
+    
+    With CFloat
+        .EnumerateFloat op1, Me, s_op1, e_op1_b, e_op1_d, m_op1, i_op1
+        .EnumerateFloat op2, Me, s_op2, e_op2_b, e_op2_d, m_op2, i_op2
+        
+        
+        s_res = s_op1 Xor s_op2
+        
+        e_res = e_op1_d + e_op2_d - EXPONENT_BIAS
+        If e_res < 0 Then bUnderflow = True
+        If e_res >= RAW_EXPONENT_MAX Then bOverflow = True
+        
+        m_res = .DecToBin(CDec(.BinToDec(i_op1 & m_op1)) * CDec(.BinToDec(i_op2 & m_op2)))
+        bRequiresNormalization = Len(m_res) > (m_size_x2 + 1)
+        
+        
+        ReDim fields(1 To 3)
+        fields(1) = Array(TAB1, TAB1 + 5 - 1, "Right")
+        fields(2) = Array(TAB2, TAB2 + 10 - 1, "Split")
+        fields(3) = Array(TAB3, TAB3 + 81 - 1, "Decimal", TAB3 + 2)
+        
+        blank = String$(LINE_WIDTH, " ") & vbLf
+        newrowtemplate = .StringOverwrites(blank, "|", TAB1 + 7, "|", TAB3 - 5)
+        headertemplate = .StringOverwrites(String$(LINE_WIDTH, "_") & vbLf, "|", TAB1 + 7, "|", TAB3 - 5)
+    
+
+
+        s = s & .StringOverwrites(blank, "a = " & op1, 1)
+        s = s & .StringOverwrites(blank, "b = " & op2, 1)
+        s = s & blank
+        s = s & .StringOverwrites(blank, "a * b = " & prod, 1)
+        s = s & blank
+    
+    
+    
+        'Bits___________________Sign__|_______Exponent__|_______Mantissa____________________________________________________________________________
+        s = s & .StringOverwriteX(headertemplate, fields, "Bits", 1, "Sign", TAB1, "Exponent", TAB2, "Mantissa", TAB3)
+        s = s & .StringOverwriteX(newrowtemplate, fields, "a", 2, s_op1, TAB1, e_op1_b, TAB2, m_op1, TAB3)
+        s = s & .StringOverwriteX(newrowtemplate, fields, "b", 2, s_op2, TAB1, e_op2_b, TAB2, m_op2, TAB3)
+        s = s & blank
+        
+        
+                
+        'Product Sign___________Sign__|_________________|___________________________________________________________________________________________
+        s = s & .StringOverwriteX(headertemplate, fields, "Product Sign", 1, "Sign", TAB1)
+        s = s & .StringOverwriteX(newrowtemplate, fields, "a", 2, s_op1, TAB1)
+        s = s & .StringOverwriteX(newrowtemplate, fields, "b", 2, "xor " & s_op2, TAB1)
+        s = s & .StringOverwriteX(newrowtemplate, fields, "-----", TAB1)
+        s = s & .StringOverwriteX(newrowtemplate, fields, "result", 2, s_res, TAB1)
+        s = s & blank
+                        
+        
+        
+        'Product Exponent_____________|_______Exponent__|___________________________________________________________________________________________
+        s = s & .StringOverwriteX(headertemplate, fields, "Product Exponent", 1, "Exponent", TAB2)
+        s = s & .StringOverwriteX(newrowtemplate, fields, "a", 2, e_op1_b, TAB2)
+        s = s & .StringOverwriteX(newrowtemplate, fields, "b", 2, "+ " & e_op2_b, TAB2)
+        s = s & .StringOverwriteX(newrowtemplate, fields, "bias " & EXPONENT_BIAS, 2, "- " & "0" & String$(EXPONENT_SIZE - 1, "1"), TAB2)
+        s = s & .StringOverwriteX(newrowtemplate, fields, String$(EXPONENT_SIZE + 2, "-"), TAB2)
+        s = s & .StringOverwriteX(newrowtemplate, fields, "result", 2, IIf(bUnderflow, "-", " ") & .DecToBin(Abs(e_res), IIf(e_res <= RAW_EXPONENT_MAX, EXPONENT_SIZE, 1 + EXPONENT_SIZE)), TAB2)
+        s = s & .StringOverwriteX(newrowtemplate, fields, "base10", 3, e_res, TAB2)
+        s = s & blank
+    
+    
+    
+        'Product Mantissa_____________|_________________|_______Mantissa____________________________________________________________________________
+        s = s & .StringOverwriteX(headertemplate, fields, "Product Mantissa", 1, "Mantissa", TAB3)
+        s = s & .StringOverwriteX(newrowtemplate, fields, "a", 2, i_op1 & "." & m_op1, TAB3)
+        s = s & .StringOverwriteX(newrowtemplate, fields, "b", 2, i_op2 & "." & m_op2, TAB3, "x", TAB3 - 2)
+        s = s & .StringOverwriteX(newrowtemplate, fields, "----------------------------¦----------------------", TAB3 - 2)
+        
+                tmp = Left$(m_res, Len(m_res) - m_size_x2) & "." & Right$(m_res, m_size_x2): If Len(tmp) < (m_size_x2 + 3) Then tmp = " " & tmp
+        s = s & .StringOverwriteX(newrowtemplate, fields, "result", 2, tmp, TAB3)
+    
+        Select Case True
+            Case e_res < 0
+                If e_res > (EXPONENT_MIN_SUBNORMAL_EXPANSION - 1) Then bSubnormal = True
+                normshift = " * 2^(" & e_res & ")"
+                m_res = String$(-e_res - -bRequiresNormalization, "0") & m_res
+                s = s & .StringOverwriteX(newrowtemplate, fields, "subnormalization:" & normshift, 2, "0." & m_res, TAB3)
+                'Stop
+                
+            Case e_res = 0
+                If Len(m_res) < (m_size_x2 + 2) Then
+                    bSubnormal = True
+                    normshift = " * 2^(-1)"
+                    s = s & .StringOverwriteX(newrowtemplate, fields, "subnormalization:" & normshift, 2, "0." & m_res & normshift, TAB3)
+                Else
+                    bSubnormal = False
+                    bRequiresNormalization = True
+                    normshift = " * 2^(-1)"
+                    m_res = Mid$(m_res, 2)
+                    s = s & .StringOverwriteX(newrowtemplate, fields, "normalization:" & normshift, 2, Left$(m_res, 1) & "." & m_res & normshift, TAB3)
+                End If
+                
+            Case bOverflow
+                    m_res = String$(MANTISSA_SIZE, "0")
+                    s = s & .StringOverwriteX(newrowtemplate, fields, "overflow", 2, m_res, TAB3)
+            
+            Case Else
+                If bRequiresNormalization Then
+                    If e_res > 0 Then
+                        m_res = Mid$(m_res, 2)
+                        normshift = " * 2^(1)"
+                        tmp = "1." & m_res & normshift
+                    Else
+                        'Does this ever happen????
+                        Stop
+                        'normshift = " * 2^(-1)"
+                        'tmp = "1." & Mid$(m_res, 2) & normshift
+                    End If
+                    s = s & .StringOverwriteX(newrowtemplate, fields, "normalization:" & normshift, 2, tmp, TAB3)
+                Else
+                    m_res = Mid$(m_res, 2)
+                End If
+                
+        End Select
+    
+        If Not bOverflow Then
+            rounded = .RoundToNearestNeighbor(m_res, MANTISSA_SIZE)
+            If e_res < 0 Then
+                tmp = "0." & rounded
+            ElseIf e_res = 0 Then
+                If bSubnormal Then
+                    tmp = "0." & rounded
+                Else
+                    tmp = "1." & rounded
+                End If
+            Else
+                tmp = "1." & rounded & IIf(bRequiresNormalization, " * 2^(1)", vbNullString)
+            End If
+            s = s & .StringOverwriteX(newrowtemplate, fields, "rounded", 2, tmp, TAB3)
+        Else
+            rounded = m_res
+        End If
+        s = s & .StringOverwriteX(newrowtemplate, fields, "encoding" & IIf(bUnderflow, " (underflow)", vbNullString), 2, rounded, TAB3)
+        s = s & blank
+    
+    
+    
+        'Product Exp Normalization____|_______Exponent__|___________________________________________________________________________________________
+        If (bRequiresNormalization Or bOverflow) Then
+            s = s & .StringOverwriteX(headertemplate, fields, "Product Exp Normalization", 1, "Exponent", TAB2)
+            s = s & .StringOverwriteX(newrowtemplate, fields, "base10", 2, e_res, TAB2)
+    
+            If Not bOverflow Then
+                If bUnderflow Then
+                    s = s & .StringOverwriteX(newrowtemplate, fields, "mantissa shift:" & normshift, 2, "- " & e_res, TAB2)
+                Else
+                    s = s & .StringOverwriteX(newrowtemplate, fields, "mantissa shift:" & normshift, 2, "+ 1", TAB2)
+                End If
+                s = s & .StringOverwriteX(newrowtemplate, fields, String$(EXPONENT_SIZE + 2, "-"), TAB2)
+                s = s & .StringOverwriteX(newrowtemplate, fields, "result", 2, e_res + IIf(bUnderflow, -e_res, 1), TAB2)
+                s = s & .StringOverwriteX(newrowtemplate, fields, "base2", 3, .DecToBin(e_res + IIf(bUnderflow, -e_res, -bRequiresNormalization), EXPONENT_SIZE), TAB2)
+            
+            Else
+                s = s & .StringOverwriteX(newrowtemplate, fields, "overflow", 2, String$(EXPONENT_SIZE, "1"), TAB2)
+            End If
+        End If
+        s = s & blank
+        
+        
+        
+        'Product Encoded________Sign__|_______Exponent__|_______Mantissa____________________________________________________________________________
+        s = s & .StringOverwriteX(headertemplate, fields, "Product Encoded", 1, "Sign", TAB1, "Exponent", TAB2, "Mantissa", TAB3)
+        Select Case True
+            Case bUnderflow Or bSubnormal:  e_res = String$(EXPONENT_SIZE, "0")
+            Case bOverflow:                 e_res = String$(EXPONENT_SIZE, "1")
+            Case Else:                      e_res = .DecToBin(e_res + -bRequiresNormalization, EXPONENT_SIZE)
+        End Select
+        s = s & .StringOverwriteX(newrowtemplate, fields, "bits", 2, s_res, TAB1, e_res, TAB2, rounded, TAB3)
+        s = s & blank
+        
+        
+                                        
+                                        
+       '------------------------------------------------------------------------------------------------------------------------------------------------------
+    
+        mutatebitpattern = "0b " & s_res & " " & e_res & " " & rounded
+        Me.Compare.Compare.Mutate mutatebitpattern
+        res_frombitpattern = Me.Compare.Compare.Value
+        res_fromops = prod
+        
+        
+        s = s & .StringOverwriteX(blank, fields, "a ÷ b = CSingle.Mutate(""0b", 1, s_res, TAB1, e_res, TAB2, rounded & """) = " & (res_fromops = res_frombitpattern), TAB3)
+        s = s & .StringOverwrites(blank, "a * b = " & prod, 1)
+        s = s & .StringOverwrites(blank, "a = " & op1 & ": 0x" & CSingle.Mutate(op1).Raw_Entire_Hexadecimal, 1)
+        s = s & .StringOverwrites(blank, "b = " & op2 & ": 0x" & CSingle.Mutate(op2).Raw_Entire_Hexadecimal, 1)
+        s = s & blank
+    
+    
+    End With
+    
+    Func_calculateProduct = s
+    
+        
+        
+
+
+
+
+'                                 111110100100000000000000
+'                               x 110000010000000000000000
+'                               ---------------------------
+'                                 000000000000000000000000
+'                 111110100100000000000000
+'           111110100100000000000000
+'          111110100100000000000000
+'         -------------------------------------------------
+'         101111001010101001000000000000000000000000000000
+
+
+
+End Function
+
+
+
+'Public Function Func_calculateProduct(op1!, op2!)
+'    Dim s_op1, e_op1_b, e_op1_d, m_op1, i_op1
+'    Dim s_op2, e_op2_b, e_op2_d, m_op2, i_op2
+'    Dim s_res, e_res, m_res
+'    Dim s$, tmp$, blank$, headertemplate$, newrowtemplate$, rounded$
+'    Dim bRequiresNormalization As Boolean, bSubnormal As Boolean, bUnderflow As Boolean, bOverflow As Boolean
+'    Dim res_fromops, res_frombitpattern, mutatebitpattern$
+'    Dim prod!
+'
+'    Const LINE_WIDTH& = 139, TAB1& = 27, TAB2& = 38, TAB3& = 56
+'
+'    On Error Resume Next
+'        prod = op1 * op2
+'    On Error GoTo 0
+'
+'
+'    With CFloat
+'        .EnumerateFloat op1, Me, s_op1, e_op1_b, e_op1_d, m_op1, i_op1
+'        .EnumerateFloat op2, Me, s_op2, e_op2_b, e_op2_d, m_op2, i_op2
+'
+'
+'        s_res = s_op1 Xor s_op2
+'
+'        e_res = e_op1_d + e_op2_d - 127
+'        If e_res < 0 Then bUnderflow = True
+'        If e_res >= 255 Then bOverflow = True
+'
+'        m_res = .DecToBin(CDec(.BinToDec(i_op1 & m_op1)) * CDec(.BinToDec(i_op2 & m_op2)))
+'        bRequiresNormalization = Len(m_res) > 47
+'
+'
+'
+'        blank = String$(LINE_WIDTH, " ") & vbLf
+'        newrowtemplate = .StringOverwrites(blank, "|", 30, "|", 48)
+'        headertemplate = .StringOverwrites(String$(LINE_WIDTH, "_") & vbLf, "|", 30, "|", 48)
+'
+'
+'
+'        s = s & .StringOverwrites(blank, "a = " & op1, 1)
+'        s = s & .StringOverwrites(blank, "b = " & op2, 1)
+'        s = s & blank
+'        s = s & .StringOverwrites(blank, "a * b = " & prod, 1)
+'        s = s & blank
+'
+'
+'
+'        s = s & .StringOverwrites(headertemplate, "Bits", 1, "Sign", TAB1 - 3, "Exponent", TAB2, "Mantissa", TAB3)
+'        s = s & .StringOverwrites(newrowtemplate, "a", 2, s_op1, TAB1, e_op1_b, TAB2, m_op1, TAB3)
+'        s = s & .StringOverwrites(newrowtemplate, "b", 2, s_op2, TAB1, e_op2_b, TAB2, m_op2, TAB3)
+'        s = s & blank
+'
+'
+'
+'        s = s & .StringOverwrites(headertemplate, "Product Sign", 1, "Sign", TAB1 - 3)
+'        s = s & .StringOverwrites(newrowtemplate, "a", 2, s_op1, TAB1)
+'        s = s & .StringOverwrites(newrowtemplate, "b", 2, s_op2, TAB1, "xor", TAB1 - 4)
+'        s = s & .StringOverwrites(newrowtemplate, "-----", TAB1 - 4)
+'        s = s & .StringOverwrites(newrowtemplate, "result", 2, s_res, TAB1)
+'        s = s & blank
+'
+'
+'
+'        s = s & .StringOverwrites(headertemplate, "Product Exponent", 1, "Exponent", TAB2)
+'        s = s & .StringOverwrites(newrowtemplate, "a", 2, e_op1_b, TAB2)
+'        s = s & .StringOverwrites(newrowtemplate, "b", 2, e_op2_b, TAB2, "+", TAB2 - 2)
+'        s = s & .StringOverwrites(newrowtemplate, "bias 127", 2, "01111111", TAB2, "-", TAB2 - 2)
+'        s = s & .StringOverwrites(newrowtemplate, "----------", TAB2 - 2)
+'        s = s & .StringOverwrites(newrowtemplate, "result", 2, IIf(bUnderflow, "-", " "), TAB2 - 1, .DecToBin(Abs(e_res), IIf(e_res <= 255, 8, 9)), TAB2 + (e_res > 255))
+'        s = s & .StringOverwrites(newrowtemplate, "base10", 3, .RightJustify(e_res, 8, 0), TAB2)
+'        s = s & blank
+'
+'
+'
+'        tmp = Left$(m_res, Len(m_res) - 46) & "." & Right$(m_res, 46): If Len(tmp) < 49 Then tmp = " " & tmp
+'        s = s & .StringOverwrites(headertemplate, "Product Mantissa", 1, "Mantissa", TAB3)
+'        s = s & .StringOverwrites(newrowtemplate, "a", 2, i_op1 & "." & m_op1, TAB3 - 2)
+'        s = s & .StringOverwrites(newrowtemplate, "b", 2, i_op2 & "." & m_op2, TAB3 - 2, "x", TAB3 - 4)
+'        s = s & .StringOverwrites(newrowtemplate, "---------------------------", TAB3 - 4)
+'        s = s & .StringOverwrites(newrowtemplate, "result", 2, tmp, TAB3 - 3)
+'
+'        Select Case True
+'            Case e_res < 0
+'                If e_res > -150 Then bSubnormal = True
+'                m_res = String$(-e_res - -bRequiresNormalization, "0") & m_res
+'                s = s & .StringOverwrites(newrowtemplate, "subnormalization", 2, "0." & m_res, TAB3 - 2)
+'
+'            Case e_res = 0
+'                If Len(m_res) < 48 Then
+'                    bSubnormal = True
+'                    s = s & .StringOverwrites(newrowtemplate, "subnormalization", 2, "0." & m_res, TAB3 - 2)
+'                Else
+'                    bSubnormal = False
+'                    bRequiresNormalization = True
+'                    m_res = Mid$(m_res, 2)
+'                    s = s & .StringOverwrites(newrowtemplate, "normalization", 2, Left$(m_res, 1) & "." & m_res, TAB3 - 2)
+'                End If
+'
+'            Case bOverflow
+'                    m_res = String$(23, "0")
+'                    s = s & .StringOverwrites(newrowtemplate, "overflow", 2, m_res, TAB3)
+'
+'            Case Else
+'                If bRequiresNormalization Then
+'                    If e_res > 0 Then
+'                        m_res = Mid$(m_res, 2)
+'                        tmp = "1." & m_res & " * 2^(1)"
+'                    Else
+'                        tmp = "1." & Mid$(m_res, 2) & " * 2^(-1)"
+'                    End If
+'                    s = s & .StringOverwrites(newrowtemplate, "normalization", 2, tmp, TAB3 - 2)
+'                Else
+'                    m_res = Mid$(m_res, 2)
+'                End If
+'
+'        End Select
+'
+'        If Not bOverflow Then
+'            rounded = .RoundToNearestNeighbor(m_res, 23)
+'            If e_res < 0 Then
+'                tmp = "0." & rounded
+'            ElseIf e_res = 0 Then
+'                If bSubnormal Then
+'                    tmp = "0." & rounded
+'                Else
+'                    tmp = "1." & rounded
+'                End If
+'            Else
+'                tmp = "1." & rounded & IIf(bRequiresNormalization, " * 2^(1)", vbNullString)
+'            End If
+'            s = s & .StringOverwrites(newrowtemplate, "rounded", 2, tmp, TAB3 - 2)
+'        Else
+'            rounded = m_res
+'        End If
+'        s = s & .StringOverwrites(newrowtemplate, "encoding" & IIf(bUnderflow, " (underflow)", vbNullString), 2, rounded, TAB3)
+'        s = s & blank
+'
+'
+'
+'        If (bRequiresNormalization Or bOverflow) Then
+'            s = s & .StringOverwrites(headertemplate, "Product Exp Normalization", 1, "Exponent", TAB2)
+'            s = s & .StringOverwrites(newrowtemplate, "base10", 2, .RightJustify(e_res, 8, 0), TAB2)
+'
+'            If Not bOverflow Then
+'                If bUnderflow Then
+'                    s = s & .StringOverwrites(newrowtemplate, "2^(" & e_res & ") mantissa shift", 2, "-", TAB2 - 2, .RightJustify(e_res, 8, 0), TAB2)
+'                Else
+'                    s = s & .StringOverwrites(newrowtemplate, "2^(1) mantissa shift", 2, "+", TAB2 - 2, "1", 45)
+'                End If
+'                s = s & .StringOverwrites(newrowtemplate, "----------", 36)
+'                s = s & .StringOverwrites(newrowtemplate, "result", 2, .RightJustify(e_res + IIf(bUnderflow, -e_res, 1), 8, 0), TAB2)
+'                s = s & .StringOverwrites(newrowtemplate, "base2", 3, .DecToBin(e_res + IIf(bUnderflow, -e_res, -bRequiresNormalization), 8), TAB2)
+'
+'            Else
+'                s = s & .StringOverwrites(newrowtemplate, "overflow", 2, "11111111", TAB2)
+'            End If
+'        End If
+'        s = s & blank
+'
+'
+'
+'        s = s & .StringOverwrites(headertemplate, "Product Encoded", 1, "Sign", TAB1 - 3, "Exponent", TAB2, "Mantissa", TAB3)
+'        If bUnderflow Or bSubnormal Then
+'            e_res = "00000000"
+'        ElseIf bOverflow Then
+'            e_res = "11111111"
+'        Else
+'            e_res = .DecToBin(e_res + -bRequiresNormalization, 8)
+'        End If
+'        s = s & .StringOverwrites(newrowtemplate, "bits", 2, s_res, TAB1, e_res, TAB2, rounded, TAB3)
+'        s = s & blank
+'
+'
+'
+'
+'       '------------------------------------------------------------------------------------------------------------------------------------------------------
+'
+'        mutatebitpattern = "0b " & s_res & " " & e_res & " " & rounded
+'        Me.Compare.Compare.Mutate mutatebitpattern
+'        res_frombitpattern = Me.Compare.Compare.Value
+'        res_fromops = prod
+'
+'
+'        s = s & .StringOverwrites(blank, "a * b = CSingle.Mutate(""b " & s_res, 1, e_res, TAB2, rounded & """) = " & (res_fromops = res_frombitpattern), TAB3)
+'        s = s & .StringOverwrites(blank, "a * b = " & prod, 1)
+'        s = s & blank
+'
+'
+'    End With
+'
+'    Func_calculateProduct = s
+'
+'
+'
+'
+'
+'
+'
+''                                 111110100100000000000000
+''                               x 110000010000000000000000
+''                               ---------------------------
+''                                 000000000000000000000000
+''                 111110100100000000000000
+''           111110100100000000000000
+''          111110100100000000000000
+''         -------------------------------------------------
+''         101111001010101001000000000000000000000000000000
+'
+'
+'
+'End Function
+
+
+
+
 Public Sub Func_floatSplit(ByRef n!, Optional s, Optional e, Optional m, Optional decode As Boolean)
     Static lt As Long2Template
     Static ft As FloatTemplate
@@ -919,8 +1629,8 @@ End Property
 Public Property Get Value_QuantizationError_DoubleRef(n#, Optional UseENotationLongerThanDigits& = 21)
     Dim s$, z$
     
-    If Me.Func_isNaN(CSng(n)) Then Value_QuantizationError_DoubleRef = 0: Exit Function
-    If n = 0 Then Value_QuantizationError_DoubleRef = 0: Exit Function
+    If Me.Func_isNaN(CSng(n)) Then Value_QuantizationError_DoubleRef = 0: Exit Property
+    If n = 0 Then Value_QuantizationError_DoubleRef = 0: Exit Property
     
     If CFloat.Floor(Log(Abs(n)) / Log(2)) > (EXPONENT_MAX - 1) Then
         s = 0
@@ -1095,8 +1805,8 @@ Public Property Get Value_ULP!()
     End If
 End Property
 
-Public Property Get Value_ULP_Distance(Target!)
-    Value_ULP_Distance = CFloat.ULP_Distance(Value, Target, Me)
+Public Property Get Value_ULP_Distance(target!)
+    Value_ULP_Distance = CFloat.ULP_Distance(Value, target, Me)
 End Property
 
 Public Property Get Value_x2Power!(pow&)
@@ -1145,7 +1855,7 @@ End Property
 
 
 Public Function Mutate(Value) As CSingle
-    On Error Resume Next
+    'On Error Resume Next
         Select Case True
         
             Case IsNumeric(Value)
@@ -1675,9 +2385,9 @@ End Function
 
 
 
-Public Property Get Value_DistanceTo!(Target)
+Public Property Get Value_DistanceTo!(target)
     On Error Resume Next
-      Value_DistanceTo = Target - Value
+      Value_DistanceTo = target - Value
     On Error GoTo 0
 End Property
 

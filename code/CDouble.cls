@@ -1074,8 +1074,8 @@ Public Property Get Value_ULP#()
     End If
 End Property
 
-Public Property Get Value_ULP_Distance(Target#)
-    Value_ULP_Distance = CFloat.ULP_Distance(Value, Target, Me)
+Public Property Get Value_ULP_Distance(target#)
+    Value_ULP_Distance = CFloat.ULP_Distance(Value, target, Me)
 End Property
 
 Public Property Get Value_x2Power#(pow&)
@@ -1640,9 +1640,9 @@ End Function
 
 
 
-Public Property Get Value_DistanceTo#(Target)
+Public Property Get Value_DistanceTo#(target)
     On Error Resume Next
-      Value_DistanceTo = Target - Value
+      Value_DistanceTo = target - Value
     On Error GoTo 0
 End Property
 

@@ -41,6 +41,7 @@ End Type
 Private Const DOUBLE_SUBNORMAL_MIN# = 4.94065645841247E-324
 
 
+
 Public PrivateMessage$
 
 
@@ -81,6 +82,72 @@ End Function
 Public Function Root#(number#, theroot#)
     Root = number ^ (1 / theroot)
 End Function
+
+
+
+Public Sub EnumerateFloat(ByRef n, oCaller As Object, s, e_bin, e_dec, m, i)
+
+    If VarType(n) <> vbDouble And VarType(n) <> vbSingle Then MsgBox "[n] must be of type vbDouble or vbSingle.": Exit Sub
+    
+    With oCaller.Compare
+        .Value = n
+        s = .Raw_SignBit
+        e_bin = .Raw_Exponent_Biased_Binary
+        e_dec = .Raw_Exponent_Biased_Decimal
+        m = .Raw_Mantissa_Binary
+        i = .Value_ImplicitBit
+    End With
+    
+End Sub
+
+
+
+Public Function StringOverwriteX$(ByVal target$, fields, ParamArray subStrs())
+    Dim i&, j&, p&, fieldwidth&, radixpoint&, backgroundchar$, bIsField As Boolean
+    For i = 0 To UBound(subStrs) - 1 Step 2
+        p = subStrs(i + 1)
+        bIsField = False
+        For j = LBound(fields) To UBound(fields)
+            If p = fields(j)(0) Then
+                bIsField = True
+                Exit For
+            End If
+        Next
+        If bIsField Then
+            fieldwidth = fields(j)(1) - p + 1
+            backgroundchar = Mid$(target, p, 1)
+            
+            Select Case UCase$(fields(j)(2)) 'field type
+                Case "RIGHT"
+                    StringOverwrite target, Me.RightJustify(subStrs(i), fieldwidth, , backgroundchar), p
+                Case "DECIMAL"
+                    radixpoint = fields(j)(3)
+                    StringOverwrite target, Me.DecimalPointJustify(subStrs(i), fieldwidth, radixpoint - p + 1, backgroundchar), p
+                Case "SPLIT"
+                    'Stop
+                    StringOverwrite target, Me.SplitJustify(subStrs(i), fieldwidth, , backgroundchar), p
+            
+            End Select
+        Else
+            StringOverwrite target, CStr(subStrs(i)), p
+        End If
+    Next
+    StringOverwriteX = target
+End Function
+
+
+Public Function StringOverwrites$(ByVal target$, ParamArray subStrs())
+    Dim j&
+    For j = 0 To UBound(subStrs) - 1 Step 2
+        StringOverwrite target, CStr(subStrs(j)), CLng(subStrs(j + 1))
+    Next
+    StringOverwrites = target
+End Function
+
+Public Sub StringOverwrite(ByRef target$, subStr$, p&)
+    Mid$(target, p, Len(subStr)) = subStr
+End Sub
+
 
 
 
@@ -412,6 +479,17 @@ Public Function BitArrayToByteArray(bits&(), Optional lobit&, Optional hibit&) A
 End Function
 
 
+Public Function BinToDec$(ByVal bin$)
+
+    If Left$(bin, 2) = "0b" Then bin = Mid$(bin, 3)
+    If Left$(bin, 2) = "0B" Then bin = Mid$(bin, 3)
+    
+    bin = ForceStringToBinaryDigitsOnly(bin)
+    
+    BinToDec = CFloat.HexToDec(CFloat.BinToHex(bin))
+    
+End Function
+
 Public Function BinToHex$(ByVal bin$, Optional groupBy& = 1)
     Dim c&, i&, j&, hNdx&, nibble&, s$
     Dim b() As Byte, h() As Byte
@@ -571,6 +649,44 @@ Public Function ForceStringToHexDigitsOnly$(ByVal s$)
 End Function
 
 
+
+Public Function RoundToNearestNeighbor$(ByVal bin$, ByVal bitcount&)
+
+    bin = ForceStringToBinaryDigitsOnly(bin)
+    
+    If Len(bin) <= bitcount Then
+        If Len(bin) = bitcount Then RoundToNearestNeighbor = bin: Exit Function
+        RoundToNearestNeighbor = String$(bitcount, "0")
+        Mid$(RoundToNearestNeighbor, bitcount - Len(bin) + 1) = bin
+        Exit Function
+    End If
+    
+    Select Case True
+    
+        Case Mid$(bin, bitcount + 1, 1) = "0"
+            RoundToNearestNeighbor = Left$(bin, bitcount)
+    
+        Case InStr(bitcount + 2, bin, "1")
+            RoundToNearestNeighbor = Me.DecToBin(Me.ExactSum("1", Me.BinToDec(Left$(bin, bitcount))))
+            
+        Case Mid$(bin, bitcount, 1) = "1"
+            RoundToNearestNeighbor = Me.DecToBin(Me.ExactSum("1", Me.BinToDec(Left$(bin, bitcount))))
+            
+        Case Else
+            RoundToNearestNeighbor = Left$(bin, bitcount)
+            
+    End Select
+    
+    If Len(RoundToNearestNeighbor) < bitcount Then
+        RoundToNearestNeighbor = String$(bitcount - Len(RoundToNearestNeighbor), "0") & RoundToNearestNeighbor
+        'Mid$(RoundToNearestNeighbor, bitcount - Len(bin) + 1) = bin
+    End If
+    
+End Function
+
+
+
+
 Public Function RemoveDecorationsFromBinaryString$(ByVal b$)
     b = RemoveFromString(b, Array("0b"), True)
     RemoveDecorationsFromBinaryString = b
@@ -678,8 +794,40 @@ End Function
 
 
 
-Public Function RightJustify$(ByVal s$, ByVal fieldwidth&, ByVal prepend&)
-    If LenB(s) Then RightJustify = Space$(prepend) & Left$(Space$(fieldwidth), fieldwidth - Len(s)) & s
+Public Function LeftJustify$(ByVal s$, ByVal fieldwidth&, Optional ByVal prepend& = 0, Optional backgroundchar$ = " ")
+    LeftJustify = String$(fieldwidth, backgroundchar)
+    Mid$(LeftJustify, 1) = s
+End Function
+
+
+Public Function RightJustify$(ByVal s$, ByVal fieldwidth&, Optional ByVal prepend& = 0, Optional backgroundchar$ = " ")
+    RightJustify = String$(fieldwidth, backgroundchar)
+    s = Right$(s, fieldwidth)
+    RightJustify = String$(prepend, backgroundchar) & Left$(String$(fieldwidth, backgroundchar), fieldwidth - Len(s)) & s
+End Function
+
+
+Public Function DecimalPointJustify$(ByVal s$, ByVal fieldwidth&, radixpoint&, Optional backgroundchar$ = " ")
+    DecimalPointJustify = String$(fieldwidth, backgroundchar)
+    If InStr(s, ".") Then
+        Mid$(DecimalPointJustify, radixpoint - InStr(s, ".") + 1) = s
+    Else
+        Mid$(DecimalPointJustify, radixpoint + 1) = s
+    End If
+End Function
+
+
+Public Function SplitJustify$(ByVal s$, ByVal fieldwidth&, Optional splitchar$ = " ", Optional backgroundchar$ = " ")
+    Dim v
+    SplitJustify = String$(fieldwidth, backgroundchar)
+    If Len(s) > fieldwidth Then Mid$(SplitJustify, 1) = s: Exit Function
+    If InStr(s, splitchar) Then
+        v = Split(s, splitchar)
+        Mid$(SplitJustify, 1) = v(0)
+        Mid$(SplitJustify, fieldwidth - Len(v(1)) + 1) = v(1)
+    Else
+        Mid$(SplitJustify, 1) = Me.RightJustify(s, fieldwidth, , backgroundchar)
+    End If
 End Function
 
 
@@ -688,6 +836,10 @@ Public Function SymbolJustify$(ByVal s$, ByVal spaces$)
     If Left$(s, 1) = "+" Then spaces = Mid$(spaces, 2)
     If LenB(s) Then SymbolJustify = spaces & s
 End Function
+
+
+
+
 
 
 Public Function FloatToBitArray(n, oCaller As Object) As Long()
