@@ -734,10 +734,38 @@ Public Function DecToBin$(ByVal n, Optional padDigits& = 0)
     If padDigits Then DecToBin = Left$(String$(padDigits, "0"), padDigits - Len(DecToBin)) & DecToBin
 End Function
 
+Public Function DecToBinHuge$(ByVal n$, Optional padDigits& = 0)
+    Dim DIGIT&
+    'If n < 0 Then Exit Function
+    Do
+        DIGIT = Me.ModBy2(n)
+        If DIGIT <> 0 Then DIGIT = 1
+        DecToBinHuge = DIGIT & DecToBinHuge
+        n = Me.ExactProduct(n, 0.5)
+        If InStr(n, ".") Then n = Left$(n, InStr(n, ".") - 1)
+    Loop While n > "0"
+    If padDigits Then DecToBinHuge = Left$(String$(padDigits, "0"), padDigits - Len(DecToBinHuge)) & DecToBinHuge
+End Function
+
 
 Public Function Mod2(n, divisor)
     Mod2 = CDec(n) - divisor * Int(n / divisor)
 End Function
+
+Public Function ModBy2&(ByVal n$)
+    Dim nOld$
+    nOld = n
+    n = Me.ExactProduct(n, 0.5)
+    If InStr(n, ".") Then n = Left$(n, InStr(n, ".") - 1)
+    n = Me.ExactProduct(n, 2)
+    If n = nOld Then
+        ModBy2 = 0
+    Else
+        ModBy2 = 1
+    End If
+End Function
+
+
 
 
 Public Function ByteArrayToBinaryString$(b() As Byte, Optional FieldSpaces&, Optional ByteSpaces&, Optional ByVal SubnormalAlt&)

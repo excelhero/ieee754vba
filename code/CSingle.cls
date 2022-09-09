@@ -320,9 +320,10 @@ Public Function Func_calculateQuotient(op1!, op2!)
         
         
         s = s & .StringOverwriteX(blank, fields, "a / b = CSingle.Mutate(""0b", 1, s_res, TAB1, e_res, TAB2, rounded & """) = " & (res_fromops = res_frombitpattern), TAB3)
-        s = s & .StringOverwrites(blank, "a / b = " & quot, 1)
-        s = s & .StringOverwrites(blank, "a = " & op1 & ": 0x" & CSingle.Mutate(op1).Raw_Entire_Hexadecimal, 1)
-        s = s & .StringOverwrites(blank, "b = " & op2 & ": 0x" & CSingle.Mutate(op2).Raw_Entire_Hexadecimal, 1)
+        s = s & blank
+        s = s & .StringOverwrites(blank, "a / b = " & quot & ": ", 1, "0x" & CSingle.Mutate(quot).Raw_Entire_Hexadecimal, 24)
+        s = s & .StringOverwrites(blank, "a = " & op1 & ": ", 1, "0x" & CSingle.Mutate(op1).Raw_Entire_Hexadecimal, 24)
+        s = s & .StringOverwrites(blank, "b = " & op2 & ": ", 1, "0x" & CSingle.Mutate(op2).Raw_Entire_Hexadecimal, 24)
         s = s & blank
     
     
@@ -511,7 +512,7 @@ Public Function Func_calculateProduct(op1!, op2!)
     
     
         'Product Exp Normalization____|_______Exponent__|___________________________________________________________________________________________
-        If (bRequiresNormalization Or bOverflow) Then
+        If (bRequiresNormalization Or bOverflow Or bUnderflow) Then
             s = s & .StringOverwriteX(headertemplate, fields, "Product Exp Normalization", 1, "Exponent", TAB2)
             s = s & .StringOverwriteX(newrowtemplate, fields, "base10", 2, e_res, TAB2)
     
@@ -554,10 +555,11 @@ Public Function Func_calculateProduct(op1!, op2!)
         res_fromops = prod
         
         
-        s = s & .StringOverwriteX(blank, fields, "a ÷ b = CSingle.Mutate(""0b", 1, s_res, TAB1, e_res, TAB2, rounded & """) = " & (res_fromops = res_frombitpattern), TAB3)
-        s = s & .StringOverwrites(blank, "a * b = " & prod, 1)
-        s = s & .StringOverwrites(blank, "a = " & op1 & ": 0x" & CSingle.Mutate(op1).Raw_Entire_Hexadecimal, 1)
-        s = s & .StringOverwrites(blank, "b = " & op2 & ": 0x" & CSingle.Mutate(op2).Raw_Entire_Hexadecimal, 1)
+        s = s & .StringOverwriteX(blank, fields, "a * b = CSingle.Mutate(""0b", 1, s_res, TAB1, e_res, TAB2, rounded & """) = " & (res_fromops = res_frombitpattern), TAB3)
+        s = s & blank
+        s = s & .StringOverwrites(blank, "a / b = " & prod & ": ", 1, "0x" & CSingle.Mutate(prod).Raw_Entire_Hexadecimal, 24)
+        s = s & .StringOverwrites(blank, "a = " & op1 & ": ", 1, "0x" & CSingle.Mutate(op1).Raw_Entire_Hexadecimal, 24)
+        s = s & .StringOverwrites(blank, "b = " & op2 & ": ", 1, "0x" & CSingle.Mutate(op2).Raw_Entire_Hexadecimal, 24)
         s = s & blank
     
     
